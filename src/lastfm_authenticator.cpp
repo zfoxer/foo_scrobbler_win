@@ -1,0 +1,33 @@
+//
+//  lastfm_authenticator.cpp
+//  foo_scrobbler_win
+//
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
+//
+
+#include "stdafx.h"
+#include "lastfm_authenticator.h"
+
+Authenticator::Authenticator(ILastfmAuthApi& api) : api(api)
+{
+}
+
+bool Authenticator::startAuth(std::string& outUrl)
+{
+    return api.startAuth(outUrl);
+}
+
+bool Authenticator::completeAuth(LastfmAuthState& outState)
+{
+    return api.completeAuth(outState);
+}
+
+void Authenticator::logout()
+{
+    api.logout();
+}
+
+bool Authenticator::hasPendingToken() const
+{
+    return api.hasPendingToken();
+}

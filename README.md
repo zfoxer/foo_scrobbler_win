@@ -1,62 +1,68 @@
-### Foo Scrobbler for Windows
-#### Version: 1.0.0 — foo_scrobbler_win — Released under GNU GPLv3
-#### © 2025-2026 by Konstantinos Kyriakopoulos
+# Foo Scrobbler for Windows (foo_scrobbler_win)  
 
-#### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
+**Release:** 1.0.2  
+**License:** GNU GPLv3  
+**Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
-### Intro
-
-Foo Scrobbler (foo_scrobbler_win) is a native Last.fm scrobbling plugin for foobar2000 on Windows. Submits tracks based on precise playback rules, caches scrobbles when offline, and operates silently after one-time authentication. Built using the official foobar2000 plugin API, it focuses on reliability, low overhead, and correct metadata handling. Fully open-source under GPLv3.
-
-Supports Windows 10 (x86, x64) and Windows 11 (x64).  
+A native Last.fm scrobbler component for foobar2000 on Windows. It submits “Now Playing” and scrobbles using the official Last.fm Scrobbling 2.0 API, applies strict playback qualification rules, and keeps a local queue when you’re offline. Once authenticated, it runs quietly in the background.
 
 
-### Key Features
+**OS support:** Windows 10 (x86, x64) and Windows 11 (x64)
 
-- **Native Windows Last.fm scrobbling**  
-  Fully integrated with foobar2000 for Windows. No compatibility layers or wrapper apps.
+This is the GitHub site of the [Windows version](https://github.com/zfoxer/foo_scrobbler_win).  
+For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_mac).
 
-- **Rule-based submission logic**  
-  Scrobbles only when playback is meaningful (e.g., ≥ 50% or ≥ 240 seconds).
+## Quick start
 
-- **Automatic offline caching**  
-  If Last.fm or the network is unavailable, scrobbles are stored and submitted automatically later.
+1. In foobar2000, go to **Preferences → Components**.
+2. Install: **foo_scrobbler_win.fb2k-component**.
+3. [Authenticate](https://github.com/zfoxer/foo_scrobbler_win/wiki/LFM_Auth) once with your Last.fm account through the browse flow.  
+4. Play music. Scrobbling happens automatically.
 
-- **Accurate “Now Playing” handling**  
-  Fully aligned with Last.fm Scrobbling 2.0 API specifications.
-
-- **Minimal user interaction**  
-  Authentication required only once.
-
-- **Lightweight and efficient**  
-  Runs inside foobar2000 without performance loss. Not relying on third-party dependencies.
-
-- **Strict playback validation**  
-  Prevents malformed or duplicate scrobbles.
-
-- **Open-source (GPLv3)**  
-  Transparent and extensible.
+**Where the UI lives**
+- Main menu: **Playback → Last.fm**
+- Settings: **File → Preferences → Advanced → Tools → Foo Scrobbler**
 
 
-### Usage
+## What it does
 
-Install **foo_scrobbler_win.fb2k-component** from within foobar2000 right from the components section in preferences.  
+### Submission behavior
+- Sends **Now Playing** when appropriate (aligned with Last.fm Scrobbling 2.0 expectations).
+- Scrobbles only after playback qualifies (e.g., **50% played** or **240 seconds**, whichever comes first).
+- Uses validation to prevent malformed or duplicate submissions.
 
-Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from the menu, the same user —or a different one— must grant access again through browser redirection to the Last.fm website. Foo Scrobbler adds a simple, convenient and non-intrusive last entry under Playback in the menu bar.  More options are located in Preferences → Advanced → Tools → Foo Scrobbler.
+### When the network is unreliable
+- If Last.fm can’t be reached, scrobbles are **queued locally**.
+- When connectivity returns, the queue is **flushed automatically**.
 
 
-### Licensing Notice
+## Design goals
 
-This project is licensed under the GNU GPLv3.
+- **Native component**: Runs inside foobar2000 on Windows, no wrappers.
+- **Predictable rules**: Deterministic scrobble qualification.
+- **Low overhead**: Lean implementation with no third-party dependencies.
+- **Correct metadata handling**: Treats tags as input, not something to “fix”.
 
-The SDK is proprietary and **not covered by the GPL license**. It remains the property of its original author (Peter Pawlowski / foobar2000).
 
-Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
+## Documentation
 
-### Changelog
+- Technical description: https://github.com/zfoxer/foo_scrobbler_mac/wiki  
+
+
+## Licensing notes
+
+This repository’s **Foo Scrobbler plugin source code** is licensed under **GNU GPLv3**.
+
+The **foobar2000 SDK** is proprietary and is **not** covered by the GPL. It remains the property of its original author (Peter Pawlowski / foobar2000).
+
+
+## Release notes
+
+<details>
+<summary><strong>Show changelog</strong></summary>
 
 <pre>
-
-1.0.0    2026-02-XX    Initial Windows release. Sharing codebase with the macOS version.
+1.0.2    2026-03-01    Initial Windows release. Sharing codebase with the macOS version.
 </pre>
 
+</details>

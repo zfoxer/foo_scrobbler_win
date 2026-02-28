@@ -1,0 +1,36 @@
+
+
+#ifndef RESOURCE_H
+#define RESOURCE_H
+
+#define IDC_BOGO1            50001
+#define IDC_BOGO2            50002
+
+#define IDC_PATTERN          50003
+#define IDC_STATE            50004
+#define IDC_CONTEXTMENU      50005
+#define IDC_PLAY             50006
+#define IDC_PAUSE            50007
+#define IDC_STOP             50008
+#define IDC_PREV             50009
+#define IDC_NEXT             50010
+#define IDC_RAND             50011
+
+#define IDC_SLIDER           50012
+#define IDC_SLIDER_LABEL     50013
+
+#define IDC_LOCK_MIN_WIDTH   50014
+#define IDC_LOCK_MIN_HEIGHT  50015
+#define IDC_STATIC_SIZE      50016
+#define IDC_LOCK_MAX_WIDTH   50017
+#define IDC_LOCK_MAX_HEIGHT  50018
+
+#define IDC_LIST             50019
+#define IDC_HEADER           50020
+
+#define IDC_LIST1            50021
+
+#endif // RESOURCE_H
+
+
+

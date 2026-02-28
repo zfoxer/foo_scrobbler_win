@@ -1,0 +1,52 @@
+//
+//  lastfm_client.cpp
+//  foo_scrobbler_win
+//
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
+//
+
+#include "stdafx.h"
+#include "lastfm_client.h"
+#include "lastfm_auth.h"
+#include "lastfm_state.h"
+
+bool LastfmClient::isSuspended() const
+{
+    return lastfmIsSuspended();
+}
+
+bool LastfmClient::isAuthenticated() const
+{
+    return lastfmIsAuthenticated();
+}
+
+bool LastfmClient::updateNowPlaying(const LastfmTrackInfo& track)
+{
+    return api.updateNowPlaying(track);
+}
+
+LastfmScrobbleResult LastfmClient::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
+                                            std::time_t startTimestamp)
+{
+    return api.scrobble(track, playbackSeconds, startTimestamp);
+}
+
+bool LastfmClient::startAuth(std::string& outUrl)
+{
+    return beginAuth(outUrl);
+}
+
+bool LastfmClient::completeAuth(LastfmAuthState& outState)
+{
+    return completeAuthFromCallbackUrl("", outState);
+}
+
+void LastfmClient::logout()
+{
+    clearAuthentication();
+}
+
+bool LastfmClient::hasPendingToken() const
+{
+    return ::hasPendingToken();
+}

@@ -1,0 +1,13 @@
+//
+//  lastfm_no.h
+//  foo_scrobbler_win
+//
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos.
+//
+
+#pragma once
+
+#include <string>
+
+std::string __s66_x3();
+std::string __s64_x9();

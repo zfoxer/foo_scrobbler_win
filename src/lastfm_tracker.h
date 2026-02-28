@@ -1,0 +1,74 @@
+//
+//  lastfm_tracker.h
+//  foo_scrobbler_win
+//
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
+//
+
+#pragma once
+
+#include <foobar2000/SDK/foobar2000.h>
+
+#include <ctime>
+
+#include "lastfm_rules.h"
+#include "lastfm_track_info.h"
+#include "lastfm_prefs_pane.h"
+
+class LastfmTracker : public play_callback_static
+{
+  public:
+    unsigned get_flags() override;
+    void on_playback_starting(play_control::t_track_command command, bool paused) override;
+    void on_playback_new_track(metadb_handle_ptr track) override;
+    void on_playback_stop(play_control::t_stop_reason reason) override;
+    void on_playback_seek(double time) override;
+    void on_playback_pause(bool paused) override;
+    void on_playback_edited(metadb_handle_ptr track) override;
+    void on_playback_dynamic_info(const file_info& info) override;
+    void on_playback_dynamic_info_track(const file_info& info) override;
+    void on_playback_time(double time) override;
+    void on_volume_change(float volume) override;
+
+  private:
+    void resetState();
+    void submitScrobbleIfNeeded();
+    void updateFromTrack(const metadb_handle_ptr& track);
+    void handleDynamicStreamUpdate(const file_info& info);
+
+    std::time_t startWallclock = 0;
+    bool isPlaying = false;
+    bool scrobbleSent = false;
+    double playbackTime = 0.0;
+    bool isCurrentStream = false;
+
+    LastfmTrackInfo current;
+
+    double effectiveListenedSeconds = 0.0;
+    double lastReportedTime = 0.0;
+    bool haveLastReportedTime = false;
+
+    // Reached scrobble threshold, but artist/title were missing at the moment.
+    // We keep tracking tag changes and will submit once metadata becomes valid.
+    bool pendingDueToMissingMetadata = false;
+
+    // Track became eligible while suspended; defer submission until stop/new-track boundary.
+    bool thresholdReachedButDeferred = false;
+
+    metadb_handle_ptr currentHandle;
+    LastfmRules rules;
+
+    // Dynamic stream scrobble (network sources only)
+    bool dynamicActive = false;
+    bool dynamicPending = false; // cached after >= 30s effective listening
+    bool dynamicSubmitted = false;
+    LastfmTrackInfo dynamicPendingTrack{};
+    double dynamicPendingPlaybackTime = 0.0;
+    std::time_t dynamicPendingStartWallclock = 0;
+    std::time_t dynamicSegmentStartWallclock = 0;
+
+    // Helpers (network-only)
+    void resetDynamicSegmentState();
+    void maybeCacheDynamicScrobble();
+    void submitDynamicPendingIfAny();
+};
