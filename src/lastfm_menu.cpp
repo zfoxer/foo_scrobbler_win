@@ -19,17 +19,16 @@
 #include <cstdlib>
 #include <cctype>
 
-static const GUID GUID_LASTFM_AUTHENTICATE = { 
-    0x505126a6, 0xcd87, 0x47bb, {0xaf, 0xf3, 0x45, 0x90, 0xfa, 0xed, 0xe8, 0x01} };
+static const GUID GUID_LASTFM_AUTHENTICATE = {
+    0x505126a6, 0xcd87, 0x47bb, {0xaf, 0xf3, 0x45, 0x90, 0xfa, 0xed, 0xe8, 0x01}};
 
-static const GUID GUID_LASTFM_CLEAR_AUTH = { 
-    0x93df02d7, 0x6ed9, 0x4633, {0xa5, 0x03, 0x1e, 0xe2, 0x60, 0x12, 0x1c, 0xaa} };
+static const GUID GUID_LASTFM_CLEAR_AUTH = {
+    0x93df02d7, 0x6ed9, 0x4633, {0xa5, 0x03, 0x1e, 0xe2, 0x60, 0x12, 0x1c, 0xaa}};
 
-static const GUID GUID_LASTFM_MENU_GROUP = { 
-    0x9dd92f54, 0xbb91, 0x49a1, {0xaf, 0x09, 0x5f, 0x23, 0x9c, 0x7d, 0x17, 0x8f} };
+static const GUID GUID_LASTFM_MENU_GROUP = {
+    0x9dd92f54, 0xbb91, 0x49a1, {0xaf, 0x09, 0x5f, 0x23, 0x9c, 0x7d, 0x17, 0x8f}};
 
-static const GUID GUID_LASTFM_SUSPEND = { 
-    0x7e72e458, 0x3ac9, 0x4942, {0xad, 0xc3, 0x69, 0xf1, 0x13, 0xdb, 0x38, 0xef} };
+static const GUID GUID_LASTFM_SUSPEND = {0x7e72e458, 0x3ac9, 0x4942, {0xad, 0xc3, 0x69, 0xf1, 0x13, 0xdb, 0x38, 0xef}};
 
 static mainmenu_group_popup_factory lastfmMenuGroupFactory(GUID_LASTFM_MENU_GROUP, mainmenu_groups::playback,
                                                            mainmenu_commands::sort_priority_dontcare, "Last.fm");
@@ -38,15 +37,14 @@ namespace
 {
 
 #if defined(__APPLE__)
-    static void openBrowserUrl(const std::string& url)
-    {
+static void openBrowserUrl(const std::string& url)
+{
 
-        if (url.find('"') != std::string::npos)
-            return;
-        std::string cmd = "open \"" + url + "\"";
-        std::system(cmd.c_str());
-
-    }
+    if (url.find('"') != std::string::npos)
+        return;
+    std::string cmd = "open \"" + url + "\"";
+    std::system(cmd.c_str());
+}
 #endif
 
 #if defined(_WIN32)
@@ -55,16 +53,7 @@ namespace
 #include <shellapi.h>
 
 void openBrowserUrl(const std::string& url)
-{
-    ShellExecuteA(
-        nullptr,
-        "open",
-        url.c_str(),
-        nullptr,
-        nullptr,
-        SW_SHOWNORMAL
-    );
-}
+{ ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL); }
 #else
 LFM_INFO("Open manually: (url omitted)");
 #endif
@@ -127,9 +116,7 @@ static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
 } // namespace
 
 t_uint32 LastfmMenu::get_command_count()
-{
-    return CMD_COUNT;
-}
+{ return CMD_COUNT; }
 
 GUID LastfmMenu::get_command(t_uint32 index)
 {
@@ -183,14 +170,10 @@ bool LastfmMenu::get_description(t_uint32 index, pfc::string_base& out)
 }
 
 GUID LastfmMenu::get_parent()
-{
-    return GUID_LASTFM_MENU_GROUP;
-}
+{ return GUID_LASTFM_MENU_GROUP; }
 
 t_uint32 LastfmMenu::get_sort_priority()
-{
-    return sort_priority_dontcare;
-}
+{ return sort_priority_dontcare; }
 
 bool LastfmMenu::get_display(t_uint32 index, pfc::string_base& text, uint32_t& flags)
 {

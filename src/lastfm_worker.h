@@ -29,9 +29,7 @@ class LastfmWorker
     static const int COOLDOWN_LIMIT = 50;
     using Clock = std::chrono::steady_clock;
     bool isShuttingDown() const noexcept
-    {
-        return shuttingDown_.load(std::memory_order_acquire);
-    }
+    { return shuttingDown_.load(std::memory_order_acquire); }
 
     struct Config
     {

@@ -11,42 +11,26 @@
 #include "lastfm_state.h"
 
 bool LastfmClient::isSuspended() const
-{
-    return lastfmIsSuspended();
-}
+{ return lastfmIsSuspended(); }
 
 bool LastfmClient::isAuthenticated() const
-{
-    return lastfmIsAuthenticated();
-}
+{ return lastfmIsAuthenticated(); }
 
 bool LastfmClient::updateNowPlaying(const LastfmTrackInfo& track)
-{
-    return api.updateNowPlaying(track);
-}
+{ return api.updateNowPlaying(track); }
 
 LastfmScrobbleResult LastfmClient::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
                                             std::time_t startTimestamp)
-{
-    return api.scrobble(track, playbackSeconds, startTimestamp);
-}
+{ return api.scrobble(track, playbackSeconds, startTimestamp); }
 
 bool LastfmClient::startAuth(std::string& outUrl)
-{
-    return beginAuth(outUrl);
-}
+{ return beginAuth(outUrl); }
 
 bool LastfmClient::completeAuth(LastfmAuthState& outState)
-{
-    return completeAuthFromCallbackUrl("", outState);
-}
+{ return completeAuthFromCallbackUrl("", outState); }
 
 void LastfmClient::logout()
-{
-    clearAuthentication();
-}
+{ clearAuthentication(); }
 
 bool LastfmClient::hasPendingToken() const
-{
-    return ::hasPendingToken();
-}
+{ return ::hasPendingToken(); }

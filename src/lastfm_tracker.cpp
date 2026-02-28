@@ -559,9 +559,7 @@ void LastfmTracker::on_playback_seek(double time)
 }
 
 void LastfmTracker::on_playback_pause(bool paused)
-{
-    rules.paused = paused;
-}
+{ rules.paused = paused; }
 
 void LastfmTracker::on_playback_stop(play_control::t_stop_reason)
 {
@@ -807,14 +805,10 @@ void LastfmTracker::submitDynamicPendingIfAny()
 }
 
 void LastfmTracker::on_playback_dynamic_info(const file_info& info)
-{
-    handleDynamicStreamUpdate(info);
-}
+{ handleDynamicStreamUpdate(info); }
 
 void LastfmTracker::on_playback_dynamic_info_track(const file_info& info)
-{
-    handleDynamicStreamUpdate(info);
-}
+{ handleDynamicStreamUpdate(info); }
 
 // Unused callbacks (required by interface)
 void LastfmTracker::on_playback_starting(play_control::t_track_command, bool)

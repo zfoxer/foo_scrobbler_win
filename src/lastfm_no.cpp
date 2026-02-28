@@ -12,11 +12,7 @@
 #include "../generated/no.generated.h"
 
 std::string __s66_x3()
-{
-    return _s66_x3();
-}
+{ return _s66_x3(); }
 
 std::string __s64_x9()
-{
-    return _s64_x9();
-}
+{ return _s64_x9(); }

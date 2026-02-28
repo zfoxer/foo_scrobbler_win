@@ -14,8 +14,8 @@
 #include <foobar2000/SDK/foobar2000.h>
 
 // Reuse the exact GUID from lastfm_prefs_pane.cpp:
-static const GUID GUID_LASTFM_PREFS_CHECKBOX_0 = { 
-    0x1b63c355, 0xa81f, 0x4abe, {0xa1, 0x72, 0x50, 0xe8, 0x2e, 0x8f, 0x66, 0x92} };
+static const GUID GUID_LASTFM_PREFS_CHECKBOX_0 = {
+    0x1b63c355, 0xa81f, 0x4abe, {0xa1, 0x72, 0x50, 0xe8, 0x2e, 0x8f, 0x66, 0x92}};
 
 bool lastfmDisableNowplaying()
 {
@@ -26,56 +26,34 @@ bool lastfmDisableNowplaying()
 }
 
 LastfmAuthState getAuthState()
-{
-    return lastfmGetAuthState();
-}
+{ return lastfmGetAuthState(); }
 
 void setAuthState(const LastfmAuthState& state)
-{
-    lastfmSetAuthState(state);
-}
+{ lastfmSetAuthState(state); }
 
 bool isAuthenticated()
-{
-    return lastfmIsAuthenticated();
-}
+{ return lastfmIsAuthenticated(); }
 
 void clearAuthentication()
-{
-    lastfmClearAuthentication();
-}
+{ lastfmClearAuthentication(); }
 
 void clearSuspension()
-{
-    lastfmClearSuspension();
-}
+{ lastfmClearSuspension(); }
 
 bool isSuspended()
-{
-    return lastfmIsSuspended();
-}
+{ return lastfmIsSuspended(); }
 
 void suspendCurrentUser()
-{
-    lastfmSuspendCurrentUser();
-}
+{ lastfmSuspendCurrentUser(); }
 
 int getPrefsPaneRadioChoice()
-{
-    return lastfmGetPrefsPaneRadioChoice();
-}
+{ return lastfmGetPrefsPaneRadioChoice(); }
 
 void setPrefsPaneRadioChoice(int value)
-{
-    lastfmSetPrefsPaneRadioChoice(value);
-}
+{ lastfmSetPrefsPaneRadioChoice(value); }
 
 bool getPrefsPaneCheckbox()
-{
-    return lastfmGetPrefsPaneCheckbox();
-}
+{ return lastfmGetPrefsPaneCheckbox(); }
 
 void setPrefsPaneCheckbox(bool enabled)
-{
-    lastfmSetPrefsPaneCheckbox(enabled);
-}
+{ lastfmSetPrefsPaneCheckbox(enabled); }

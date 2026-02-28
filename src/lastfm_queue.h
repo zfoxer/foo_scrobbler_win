@@ -25,9 +25,7 @@ class LastfmQueue
     LastfmQueue(LastfmClient& client, std::function<void()> onInvalidSession);
 
     void setShuttingDownFlag(std::atomic<bool>* flag)
-    {
-        shuttingDown_ = flag;
-    }
+    { shuttingDown_ = flag; }
 
     // Called when metadata changes before submit
     void refreshPendingScrobbleMetadata(const LastfmTrackInfo& track);

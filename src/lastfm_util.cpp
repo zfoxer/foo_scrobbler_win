@@ -207,14 +207,10 @@ bool httpRequestToString(const char* method, const char* url, pfc::string8& outB
 }
 
 bool httpGetToString(const char* url, pfc::string8& outBody, std::string& outError)
-{
-    return httpRequestToString("GET", url, outBody, outError);
-}
+{ return httpRequestToString("GET", url, outBody, outError); }
 
 bool httpPostToString(const char* url, pfc::string8& outBody, std::string& outError)
-{
-    return httpRequestToString("POST", url, outBody, outError);
-}
+{ return httpRequestToString("POST", url, outBody, outError); }
 
 // JSON helpers
 

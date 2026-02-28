@@ -37,9 +37,7 @@ LastfmScrobbler::LastfmScrobbler(LastfmClient& client)
 }
 
 LastfmScrobbler::~LastfmScrobbler()
-{
-    shutdown();
-}
+{ shutdown(); }
 
 void LastfmScrobbler::sendNowPlayingOnly(const LastfmTrackInfo& track)
 {
@@ -96,9 +94,7 @@ void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
 }
 
 void LastfmScrobbler::refreshPendingMetadata(const LastfmTrackInfo& track)
-{
-    queue.refreshPendingScrobbleMetadata(track);
-}
+{ queue.refreshPendingScrobbleMetadata(track); }
 
 void LastfmScrobbler::queueScrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startWallclock,
                                     bool refreshOnSubmit)
@@ -145,14 +141,10 @@ void LastfmScrobbler::handleInvalidSessionOnce()
 }
 
 void LastfmScrobbler::clearQueue()
-{
-    queue.clearAll();
-}
+{ queue.clearAll(); }
 
 void LastfmScrobbler::resetInvalidSessionHandling()
-{
-    invalidSessionHandled.store(false);
-}
+{ invalidSessionHandled.store(false); }
 
 void LastfmScrobbler::onAuthenticationRecovered()
 {

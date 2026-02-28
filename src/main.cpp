@@ -14,8 +14,8 @@
 #include "lastfm_core.h"
 
 // Component GUID
-static const GUID FOO_SCROBBLER_WIN_GUID = { 
-    0xc38c2b70, 0x0edb, 0x432a, {0x81, 0xac, 0x15, 0x2f, 0x1e, 0x94, 0x5d, 0x96} };
+static const GUID FOO_SCROBBLER_WIN_GUID = {
+    0xc38c2b70, 0x0edb, 0x432a, {0x81, 0xac, 0x15, 0x2f, 0x1e, 0x94, 0x5d, 0x96}};
 
 // Component version info
 DECLARE_COMPONENT_VERSION("Foo Scrobbler", FOOSCROBBLER_VERSION,
@@ -37,9 +37,7 @@ class FooScrobblerWinComponent : public initquit
     }
 
     void on_quit() override
-    {
-        LastfmCore::instance().scrobbler().shutdown();
-    }
+    { LastfmCore::instance().scrobbler().shutdown(); }
 };
 
 static initquit_factory_t<FooScrobblerWinComponent> initquitFactory;
