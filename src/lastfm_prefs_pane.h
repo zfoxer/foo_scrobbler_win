@@ -9,6 +9,8 @@
 
 #include "sdk_bootstrap.h"
 
+#include <string>
+
 // Advanced Preferences registration (Preferences → Advanced).
 void lastfmRegisterPrefsPane();
 
@@ -27,3 +29,6 @@ int lastfmTagAlbumSource();
 
 bool lastfmTagFallbackArtistAlbum();
 bool lastfmTagTreatVariousArtistsAsEmpty();
+
+std::string lastfmExcludedArtistsPatternList();
+std::string lastfmExcludedTitlesPatternList();

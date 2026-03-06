@@ -18,11 +18,17 @@ class LastfmCore
     static LastfmCore& instance();
 
     LastfmClient& client()
-    { return m_client; }
+    {
+        return m_client;
+    }
     LastfmScrobbler& scrobbler()
-    { return m_scrobbler; }
+    {
+        return m_scrobbler;
+    }
     Authenticator& authenticator()
-    { return m_authenticator; }
+    {
+        return m_authenticator;
+    }
 
   private:
     LastfmCore();

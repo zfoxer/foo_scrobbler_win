@@ -21,7 +21,7 @@ static const GUID FOO_SCROBBLER_WIN_GUID = {
 DECLARE_COMPONENT_VERSION("Foo Scrobbler", FOOSCROBBLER_VERSION,
                           "A Last.fm scrobbler for foobar2000 (Windows).\n"
                           "(c) 2025-2026 Konstantinos Kyriakopoulos.\n"
-                          "GPLv3-licensed source.");
+                          "MIT-licensed source.");
 
 // Ensures the binary filename is correct
 VALIDATE_COMPONENT_FILENAME("foo_scrobbler_win.dll");
@@ -37,7 +37,9 @@ class FooScrobblerWinComponent : public initquit
     }
 
     void on_quit() override
-    { LastfmCore::instance().scrobbler().shutdown(); }
+    {
+        LastfmCore::instance().scrobbler().shutdown();
+    }
 };
 
 static initquit_factory_t<FooScrobblerWinComponent> initquitFactory;

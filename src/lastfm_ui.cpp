@@ -26,34 +26,56 @@ bool lastfmDisableNowplaying()
 }
 
 LastfmAuthState getAuthState()
-{ return lastfmGetAuthState(); }
+{
+    return lastfmGetAuthState();
+}
 
 void setAuthState(const LastfmAuthState& state)
-{ lastfmSetAuthState(state); }
+{
+    lastfmSetAuthState(state);
+}
 
 bool isAuthenticated()
-{ return lastfmIsAuthenticated(); }
+{
+    return lastfmIsAuthenticated();
+}
 
 void clearAuthentication()
-{ lastfmClearAuthentication(); }
+{
+    lastfmClearAuthentication();
+}
 
 void clearSuspension()
-{ lastfmClearSuspension(); }
+{
+    lastfmClearSuspension();
+}
 
 bool isSuspended()
-{ return lastfmIsSuspended(); }
+{
+    return lastfmIsSuspended();
+}
 
 void suspendCurrentUser()
-{ lastfmSuspendCurrentUser(); }
+{
+    lastfmSuspendCurrentUser();
+}
 
 int getPrefsPaneRadioChoice()
-{ return lastfmGetPrefsPaneRadioChoice(); }
+{
+    return lastfmGetPrefsPaneRadioChoice();
+}
 
 void setPrefsPaneRadioChoice(int value)
-{ lastfmSetPrefsPaneRadioChoice(value); }
+{
+    lastfmSetPrefsPaneRadioChoice(value);
+}
 
 bool getPrefsPaneCheckbox()
-{ return lastfmGetPrefsPaneCheckbox(); }
+{
+    return lastfmGetPrefsPaneCheckbox();
+}
 
 void setPrefsPaneCheckbox(bool enabled)
-{ lastfmSetPrefsPaneCheckbox(enabled); }
+{
+    lastfmSetPrefsPaneCheckbox(enabled);
+}

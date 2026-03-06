@@ -141,6 +141,12 @@ static const GUID GUID_LASTFM_TAG_ALBUM_RADIO_3 = {
 static const GUID GUID_LASTFM_TAG_ALBUM_RADIO_4 = {
     /* DISCNAME */ 0x3329a82a, 0x4ea8, 0x461c, {0xba, 0x75, 0x7c, 0x09, 0x55, 0xda, 0x5a, 0xa4}};
 
+static const GUID GUID_LASTFM_PREFS_EXCLUDE_ARTISTS = {
+    0xcea981d8, 0xf533, 0x41be, {0x82, 0xd0, 0xfb, 0x29, 0x40, 0xd2, 0x62, 0x52}};
+
+static const GUID GUID_LASTFM_PREFS_EXCLUDE_TITLES = {
+    0x3fab6a41, 0xa514, 0x4836, {0x9d, 0x58, 0x67, 0x2b, 0x2e, 0x4b, 0x4a, 0x1e}};
+
 // Branches
 static advconfig_branch_factory g_lastfmPrefsBranchFactory("Foo Scrobbler", GUID_LASTFM_PREFS_BRANCH,
                                                            advconfig_branch::guid_branch_tools, -50);
@@ -327,6 +333,14 @@ static service_factory_single_t<advconfig_entry_checkbox_impl> g_tagArtistRadio4
                                                                                  GUID_LASTFM_PREFS_BRANCH_TAG_ARTIST,
                                                                                  4.0, false, true, 0u);
 
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_excludeArtists("Exclude artists (text or regex; ';' separated)", GUID_LASTFM_PREFS_EXCLUDE_ARTISTS,
+                     GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 2.0, "", 0);
+
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_excludeTitles("Exclude titles (text or regex; ';' separated)", GUID_LASTFM_PREFS_EXCLUDE_TITLES,
+                    GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 3.0, "", 0);
+
 static void enforceOneOfN(const GUID* ids, std::size_t n, std::size_t defaultIndex)
 {
     std::size_t firstOn = n; // "none"
@@ -502,6 +516,26 @@ static int getTagAlbumSourceChoice()
         return 1;
     return 0;
 }
+
+static std::string advGetStringState(const GUID& g)
+{
+    service_ptr_t<advconfig_entry_string> e;
+    if (!advconfig_entry::g_find_t(e, g))
+        return {};
+
+    pfc::string8 v;
+    e->get_state(v);
+    return std::string(v.c_str());
+}
+
+static void advSetStringState(const GUID& g, const char* s)
+{
+    service_ptr_t<advconfig_entry_string> e;
+    if (!advconfig_entry::g_find_t(e, g))
+        return;
+
+    e->set_state(s ? s : "");
+}
 } // namespace
 
 void lastfmSyncLogLevelFromPrefs()
@@ -527,28 +561,56 @@ void lastfmRegisterPrefsPane()
 }
 
 bool lastfmOnlyScrobbleFromMediaLibrary()
-{ return advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_1); }
+{
+    return advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_1);
+}
 
 int lastfmDynamicSourcesMode()
-{ return getDynamicSourcesMode(); }
+{
+    return getDynamicSourcesMode();
+}
 
 bool lastfmDisableNowPlaying()
-{ return advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_0); }
+{
+    return advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_0);
+}
 
 int lastfmTagArtistSource()
-{ return getTagArtistSourceChoice(); }
+{
+    return getTagArtistSourceChoice();
+}
 
 bool lastfmTagFallbackArtistAlbum()
-{ return advGetCheckboxState(GUID_LASTFM_TAG_CHECKBOX_FALLBACK_ARTIST_ALBUM); }
+{
+    return advGetCheckboxState(GUID_LASTFM_TAG_CHECKBOX_FALLBACK_ARTIST_ALBUM);
+}
 
 bool lastfmTagTreatVariousArtistsAsEmpty()
-{ return advGetCheckboxState(GUID_LASTFM_TAG_CHECKBOX_VA_AS_EMPTY); }
+{
+    return advGetCheckboxState(GUID_LASTFM_TAG_CHECKBOX_VA_AS_EMPTY);
+}
 
 int lastfmTagAlbumArtistSource()
-{ return getTagAlbumArtistSourceChoice(); }
+{
+    return getTagAlbumArtistSourceChoice();
+}
 
 int lastfmTagTitleSource()
-{ return getTagTitleSourceChoice(); }
+{
+    return getTagTitleSourceChoice();
+}
 
 int lastfmTagAlbumSource()
-{ return getTagAlbumSourceChoice(); }
+{
+    return getTagAlbumSourceChoice();
+}
+
+std::string lastfmExcludedArtistsPatternList()
+{
+    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_ARTISTS);
+}
+
+std::string lastfmExcludedTitlesPatternList()
+{
+    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_TITLES);
+}

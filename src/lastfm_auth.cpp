@@ -23,7 +23,9 @@ static std::string lastfmPendingToken;
 }
 
 bool hasPendingToken()
-{ return !lastfmPendingToken.empty(); }
+{
+    return !lastfmPendingToken.empty();
+}
 
 // Get token & browser URL
 bool beginAuth(std::string& outAuthUrl)

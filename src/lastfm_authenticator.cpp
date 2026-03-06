@@ -13,13 +13,21 @@ Authenticator::Authenticator(ILastfmAuthApi& api) : api(api)
 }
 
 bool Authenticator::startAuth(std::string& outUrl)
-{ return api.startAuth(outUrl); }
+{
+    return api.startAuth(outUrl);
+}
 
 bool Authenticator::completeAuth(LastfmAuthState& outState)
-{ return api.completeAuth(outState); }
+{
+    return api.completeAuth(outState);
+}
 
 void Authenticator::logout()
-{ api.logout(); }
+{
+    api.logout();
+}
 
 bool Authenticator::hasPendingToken() const
-{ return api.hasPendingToken(); }
+{
+    return api.hasPendingToken();
+}

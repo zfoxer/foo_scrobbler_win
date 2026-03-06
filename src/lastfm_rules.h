@@ -52,5 +52,7 @@ struct LastfmRules
     }
 
     void markSkipped()
-    { skippedEarly = true; }
+    {
+        skippedEarly = true;
+    }
 };

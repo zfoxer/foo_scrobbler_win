@@ -636,7 +636,9 @@ void LastfmQueue::clearAll()
 }
 
 bool LastfmQueue::drainEnabled()
-{ return cfgLastfmDrainEnabled.get() != 0; }
+{
+    return cfgLastfmDrainEnabled.get() != 0;
+}
 
 std::chrono::seconds LastfmQueue::drainCooldown()
 {

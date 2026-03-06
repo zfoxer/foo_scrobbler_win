@@ -1,10 +1,10 @@
 # Foo Scrobbler for Windows    
 
-**Release:** 1.0.2  
-**License:** GNU GPLv3  
+**Release:** 1.0.5  
+**License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
-A native Last.fm scrobbler component (foo_scrobbler_win) for foobar2000 on Windows. It submits “Now Playing” and scrobbles using the official Last.fm Scrobbling 2.0 API, applies strict playback qualification rules, and keeps a local queue when you’re offline. Once authenticated, it runs quietly in the background.
+A native Lastfm scrobbler component (foo_scrobbler_win) for foobar2000 on Windows. It submits “Now Playing” and scrobbles using the official Last.fm Scrobbling 2.0 API, applies strict playback qualification rules, and keeps a local queue when you’re offline. Once authenticated, it runs quietly in the background.
 
 
 **OS support:** Windows 10 (x86, x64) and Windows 11 (x64)
@@ -14,9 +14,9 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 
 ## Quick start
 
-1. In foobar2000, go to **Preferences → Components**.
+1. In foobar, go to **Preferences → Components**.
 2. Install: **foo_scrobbler_win.fb2k-component**.
-3. [Authenticate](https://github.com/zfoxer/foo_scrobbler_win/wiki/LFM_Auth) once with your Last.fm account through the browse flow.  
+3. [Authenticate](https://github.com/zfoxer/foo_scrobbler_win/wiki/LFM_Auth) once with your Lastfm account through the browse flow.  
 4. Play music. Scrobbling happens automatically.
 
 **Where the UI lives**
@@ -51,9 +51,9 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 
 ## Licensing notes
 
-This repository’s **Foo Scrobbler plugin source code** is licensed under **GNU GPLv3**.
+This repository’s **Foo Scrobbler plugin source code** is licensed under **MIT License**.
 
-The **foobar2000 SDK** is proprietary and is **not** covered by the GPL. It remains the property of its original author (Peter Pawlowski / foobar2000).
+The **foobar2000 SDK** is proprietary and is **not** covered by the MIT License. It remains the property of its original author (Peter Pawlowski / foobar2000).
 
 
 ## Release notes
@@ -62,6 +62,9 @@ The **foobar2000 SDK** is proprietary and is **not** covered by the GPL. It rema
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.0.5    2026-03-07    Added regular expressions (regex) support to filter out submissions (Advanced prefs).
+                       Switched to MIT License
+
 1.0.2    2026-03-01    Initial Windows release. Sharing codebase with the macOS version.
 </pre>
 

@@ -20,7 +20,9 @@ LastfmWorker::LastfmWorker(LastfmClient& client, LastfmQueue& queue, Config cfg)
 }
 
 LastfmWorker::~LastfmWorker()
-{ stop(); }
+{
+    stop();
+}
 
 void LastfmWorker::start()
 {
@@ -52,7 +54,9 @@ void LastfmWorker::stop()
 }
 
 void LastfmWorker::wake()
-{ cv_.notify_one(); }
+{
+    cv_.notify_one();
+}
 
 void LastfmWorker::enqueue(const Command& cmd)
 {

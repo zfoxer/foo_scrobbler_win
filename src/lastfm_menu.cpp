@@ -53,7 +53,9 @@ static void openBrowserUrl(const std::string& url)
 #include <shellapi.h>
 
 void openBrowserUrl(const std::string& url)
-{ ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL); }
+{
+    ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+}
 #else
 LFM_INFO("Open manually: (url omitted)");
 #endif
@@ -116,7 +118,9 @@ static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
 } // namespace
 
 t_uint32 LastfmMenu::get_command_count()
-{ return CMD_COUNT; }
+{
+    return CMD_COUNT;
+}
 
 GUID LastfmMenu::get_command(t_uint32 index)
 {
@@ -170,10 +174,14 @@ bool LastfmMenu::get_description(t_uint32 index, pfc::string_base& out)
 }
 
 GUID LastfmMenu::get_parent()
-{ return GUID_LASTFM_MENU_GROUP; }
+{
+    return GUID_LASTFM_MENU_GROUP;
+}
 
 t_uint32 LastfmMenu::get_sort_priority()
-{ return sort_priority_dontcare; }
+{
+    return sort_priority_dontcare;
+}
 
 bool LastfmMenu::get_display(t_uint32 index, pfc::string_base& text, uint32_t& flags)
 {
