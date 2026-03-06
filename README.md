@@ -63,6 +63,7 @@ The **foobar2000 SDK** is proprietary and is **not** covered by the MIT License.
 
 <pre>
 1.0.5    2026-03-07    Added regular expressions (regex) support to filter out submissions (Advanced prefs).
+                       Fixed: Unicode track titles are now handled correctly for Now Playing and scrobbling.
                        Switched to MIT License
 
 1.0.2    2026-03-01    Initial Windows release. Sharing codebase with the macOS version.
