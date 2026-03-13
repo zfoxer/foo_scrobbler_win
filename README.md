@@ -1,13 +1,13 @@
 # Foo Scrobbler for Windows    
 
-**Release:** 1.0.5  
+**Release:** 1.0.6  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
 A native Lastfm scrobbler component (foo_scrobbler_win) for foobar2000 on Windows. It submits “Now Playing” and scrobbles using the official Last.fm Scrobbling 2.0 API, applies strict playback qualification rules, and keeps a local queue when you’re offline. Once authenticated, it runs quietly in the background.
 
 
-**OS support:** Windows 10 (x86, x64) and Windows 11 (x64)
+**OS support:** Windows 10 (x86, x64) and Windows 11 (x64, arm64ec)
 
 This is the GitHub site of the [Windows version](https://github.com/zfoxer/foo_scrobbler_win).  
 For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_mac).
@@ -62,6 +62,9 @@ The **foobar2000 SDK** is proprietary and is **not** covered by the MIT License.
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.0.6    2026-03-13    Added support for foobar Title Formatting for input tags. Removed previous tag mapping.
+                       Added build for ARM64EC architecture for Windows 11.
+
 1.0.5    2026-03-07    Added regular expressions (regex) support to filter out submissions (Advanced prefs).
                        Fixed: Unicode track titles are now handled correctly for Now Playing and scrobbling.
                        Switched to MIT License
