@@ -22,12 +22,11 @@ int lastfmDynamicSourcesMode();
 
 bool lastfmDisableNowPlaying();
 
-int lastfmTagArtistSource();
-int lastfmTagAlbumArtistSource();
-int lastfmTagTitleSource();
-int lastfmTagAlbumSource();
+std::string lastfmArtistTf();
+std::string lastfmAlbumArtistTf();
+std::string lastfmTitleTf();
+std::string lastfmAlbumTf();
 
-bool lastfmTagFallbackArtistAlbum();
 bool lastfmTagTreatVariousArtistsAsEmpty();
 
 std::string lastfmExcludedArtistsPatternList();

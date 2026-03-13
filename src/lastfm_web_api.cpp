@@ -6,6 +6,7 @@
 //
 
 #include "stdafx.h"
+
 #include "lastfm_web_api.h"
 #include "lastfm_no.h"
 #include "lastfm_ui.h"
@@ -139,8 +140,8 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
         return LastfmScrobbleResult::INVALID_SESSION;
     }
 
-    const std::string apiKey = __s66_x3();
-    const std::string apiSecret = __s64_x9();
+    const std::string apiKey = __key();
+    const std::string apiSecret = __sec();
 
     if (apiKey.empty() || apiSecret.empty())
     {

@@ -1,12 +1,13 @@
 //
 //  lastfm_auth.cpp
-//  foo_scrobbler_win
+//  foo_scrobbler_mac
 //
 //  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
 #include "stdafx.h"
 #include "sdk_bootstrap.h"
+
 #include "lastfm_auth.h"
 #include "lastfm_no.h"
 #include "lastfm_util.h"
@@ -33,8 +34,8 @@ bool beginAuth(std::string& outAuthUrl)
     outAuthUrl.clear();
     lastfmPendingToken.clear();
 
-    const std::string apiKey = __s66_x3();
-    const std::string apiSecret = __s64_x9();
+    const std::string apiKey = __key();
+    const std::string apiSecret = __sec();
 
     if (apiKey.empty() || apiSecret.empty())
     {
@@ -95,8 +96,8 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
         return false;
     }
 
-    const std::string apiKey = __s66_x3();
-    const std::string apiSecret = __s64_x9();
+    const std::string apiKey = __key();
+    const std::string apiSecret = __sec();
 
     if (apiKey.empty() || apiSecret.empty())
     {
