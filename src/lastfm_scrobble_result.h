@@ -1,5 +1,5 @@
 //
-//  lastfm_results.h
+//  lastfm_scrobble_result.h
 //  foo_scrobbler_win
 //
 //  (c) 2025-2026 by Konstantinos Kyriakopoulos.
@@ -11,6 +11,7 @@ enum class LastfmScrobbleResult
 {
     SUCCESS,
     TEMPORARY_ERROR,
+    RATE_LIMITED,
     INVALID_SESSION,
     OTHER_ERROR
 };

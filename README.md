@@ -1,6 +1,6 @@
 # Foo Scrobbler for Windows    
 
-**Release:** 1.0.6  
+**Release:** 1.0.7  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -62,6 +62,11 @@ The **foobar2000 SDK** is proprietary and is **not** covered by the MIT License.
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.0.7    2026-03-20    Handle Last.fm rate-limit error 29 with queue cooldown.
+                       Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
+                       Merged NP code into WebAPI.
+                       Fix UI dynamic sources setting being disconnected.
+
 1.0.6    2026-03-13    Added support for foobar Title Formatting for input tags. Removed previous tag mapping.
                        Added build for ARM64EC architecture for Windows 11.
 
