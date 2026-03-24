@@ -6,6 +6,7 @@
 //
 
 #include "stdafx.h"
+
 #include "debug.h"
 
 std::atomic<int> lfmLogLevel{static_cast<int>(LfmLogLevel::INFO)};

@@ -6,6 +6,7 @@
 //
 
 #include "stdafx.h"
+
 #include "lastfm_state.h"
 #include "debug.h"
 

@@ -6,6 +6,7 @@
 //
 
 #include "stdafx.h"
+
 #include "lastfm_scrobbler.h"
 #include "lastfm_client.h"
 #include "lastfm_ui.h"

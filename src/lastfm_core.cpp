@@ -6,6 +6,7 @@
 //
 
 #include "stdafx.h"
+
 #include "lastfm_core.h"
 
 LastfmCore& LastfmCore::instance()

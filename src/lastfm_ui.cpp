@@ -6,6 +6,7 @@
 //
 
 #include "stdafx.h"
+
 #include "lastfm_ui.h"
 #include "lastfm_state.h"
 #include "lastfm_prefs_pane_state.h"

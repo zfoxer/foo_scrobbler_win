@@ -1,6 +1,6 @@
 //
 //  lastfm_auth.cpp
-//  foo_scrobbler_mac
+//  foo_scrobbler_win
 //
 //  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //

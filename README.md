@@ -1,6 +1,6 @@
 # Foo Scrobbler for Windows    
 
-**Release:** 1.0.7  
+**Release:** 1.0.9  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -62,6 +62,11 @@ The **foobar2000 SDK** is proprietary and is **not** covered by the MIT License.
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.0.9    2026-03-26    Avoid reparsing the persisted scrobble queue on every access.
+                       Cache compiled titleformat scripts instead of rebuilding them during playback.
+                       Replace unsafe static locals in stream dedup with per-instance tracker state.
+                       Last.fm back-end error 8 treated as temp, not having limited retries before discarding.
+
 1.0.7    2026-03-20    Handle Last.fm rate-limit error 29 with queue cooldown.
                        Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
                        Merged NP code into WebAPI.

@@ -6,6 +6,7 @@
 //
 
 #include "stdafx.h"
+
 #include "lastfm_authenticator.h"
 
 Authenticator::Authenticator(ILastfmAuthApi& api) : api(api)
