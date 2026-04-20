@@ -41,13 +41,16 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 - **Native component**: Runs inside foobar2000 on Windows, no wrappers.
 - **Predictable rules**: Deterministic scrobble qualification.
 - **Low overhead**: Lean implementation with no third-party dependencies.
-- **Correct metadata handling**: Treats tags as input, not something to “fix”.
+- **Correct metadata handling**: Preserves tag values and processes them without alteration.
 
 
 ## Documentation
 
 - Technical description: https://github.com/zfoxer/foo_scrobbler_mac/wiki  
 
+<p align="left">
+  <img src="prefs_win.png" alt="Foo Scrobbler Settings" width="800" />
+</p>
 
 ## Licensing notes
 
