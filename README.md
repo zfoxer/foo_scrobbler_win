@@ -6,7 +6,7 @@
   </picture>
 </p>
 
-# Foo Scrobbler for Windows    
+### Foo Scrobbler for Windows    
 
 **Release:** 1.0.9  
 **License:** MIT  
@@ -20,7 +20,7 @@ A native Lastfm scrobbler component (foo_scrobbler_win) for foobar2000 on Window
 This is the GitHub site of the [Windows version](https://github.com/zfoxer/foo_scrobbler_win).  
 For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_mac).
 
-## Quick start
+#### Quick start
 
 1. In foobar, go to **Preferences → Components**.
 2. Install: **foo_scrobbler_win.fb2k-component**.
@@ -32,19 +32,19 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 - Settings: **File → Preferences → Advanced → Tools → Foo Scrobbler**
 
 
-## What it does
+### What it does
 
-### Submission behavior
+#### Submission behavior
 - Sends **Now Playing** when appropriate (aligned with Last.fm Scrobbling 2.0 expectations).
 - Scrobbles only after playback qualifies (e.g., **50% played** or **240 seconds**, whichever comes first).
 - Uses validation to prevent malformed or duplicate submissions.
 
-### When the network is unreliable
+#### When the network is unreliable
 - If Last.fm can’t be reached, scrobbles are **queued locally**.
 - When connectivity returns, the queue is **flushed automatically**.
 
 
-## Design goals
+### Design goals
 
 - **Native component**: Runs inside foobar2000 on Windows, no wrappers.
 - **Predictable rules**: Deterministic scrobble qualification.
@@ -52,7 +52,7 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 - **Correct metadata handling**: Preserves tag values and processes them without alteration.
 
 
-## Documentation
+### Documentation
 
 - Technical description: https://github.com/zfoxer/foo_scrobbler_mac/wiki  
 
@@ -60,7 +60,7 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
   <img src="assets/prefs_win.png" alt="Foo Scrobbler Settings" width="800" />
 </p>
 
-## Licensing notes
+### Licensing notes
 
 The source code of this project is licensed under the MIT License.
 
@@ -69,7 +69,7 @@ The SDK is proprietary and is not covered by the MIT License. It remains the pro
 The project logo and related visual brand assets are not covered by the MIT License and remain the intellectual property of Konstantinos Kyriakopoulos. All rights reserved.
 
 
-## Release notes
+### Release notes
 
 <details>
 <summary><strong>Show changelog</strong></summary>
