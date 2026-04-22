@@ -1,3 +1,11 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/foo-scrobbler_dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/foo-scrobbler_light.svg">
+    <img alt="Foo Scrobbler" src="assets/foo-scrobbler_light.svg" width="420">
+  </picture>
+</p>
+
 # Foo Scrobbler for Windows    
 
 **Release:** 1.0.9  
@@ -49,14 +57,16 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 - Technical description: https://github.com/zfoxer/foo_scrobbler_mac/wiki  
 
 <p align="left">
-  <img src="prefs_win.png" alt="Foo Scrobbler Settings" width="800" />
+  <img src="assets/prefs_win.png" alt="Foo Scrobbler Settings" width="800" />
 </p>
 
 ## Licensing notes
 
-This repository’s **Foo Scrobbler plugin source code** is licensed under **MIT License**.
+The source code of this project is licensed under the MIT License.
 
-The **foobar2000 SDK** is proprietary and is **not** covered by the MIT License. It remains the property of its original author (Peter Pawlowski / foobar2000).
+The SDK is proprietary and is not covered by the MIT License. It remains the property of its original author (Peter Pawlowski / foobar2000).
+
+The project logo and related visual brand assets are not covered by the MIT License and remain the intellectual property of Konstantinos Kyriakopoulos. All rights reserved.
 
 
 ## Release notes
