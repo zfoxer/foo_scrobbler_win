@@ -20,14 +20,14 @@ A native Lastfm scrobbler component (foo_scrobbler_win) for foobar2000 on Window
 This is the GitHub site of the [Windows version](https://github.com/zfoxer/foo_scrobbler_win).  
 For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_mac).
 
-#### Quick start
+### Quick start
 
 1. In foobar, go to **Preferences → Components**.
 2. Install: **foo_scrobbler_win.fb2k-component**.
 3. [Authenticate](https://github.com/zfoxer/foo_scrobbler_win/wiki/LFM_Auth) once with your Lastfm account through the browse flow.  
 4. Play music. Scrobbling happens automatically.
 
-**Where the UI lives**
+### Where the UI lives
 - Main menu: **Playback → Last.fm**
 - Settings: **File → Preferences → Advanced → Tools → Foo Scrobbler**
 
