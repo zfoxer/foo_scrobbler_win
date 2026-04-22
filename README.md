@@ -79,12 +79,12 @@ The project logo and related visual brand assets are not covered by the MIT Lice
                        Cache compiled titleformat scripts instead of rebuilding them during playback.
                        Replace unsafe static locals in stream dedup with per-instance tracker state.
                        Last.fm back-end error 8 treated as temp, not having limited retries before discarding.
-                       Fix regression for URL opener (only the Win version affected).
+                       Fix regression for URL opener (Windows-only).
 
 1.0.7    2026-03-20    Handle Last.fm rate-limit error 29 with queue cooldown.
                        Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
                        Merged NP code into WebAPI.
-                       Fix UI dynamic sources setting being disconnected.
+                       Fix UI dynamic sources setting being disconnected (Windows-only).
 
 1.0.6    2026-03-13    Added support for foobar Title Formatting for input tags. Removed previous tag mapping.
                        Added build for ARM64EC architecture for Windows 11.
