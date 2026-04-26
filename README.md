@@ -44,13 +44,21 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 - When connectivity returns, the queue is **flushed automatically**.
 
 
-### Design goals
+### Design goals and features
 
-- **Native component**: Runs inside foobar2000 on Windows, no wrappers.
-- **Predictable rules**: Deterministic scrobble qualification.
-- **Low overhead**: Lean implementation with no third-party dependencies.
-- **Correct metadata handling**: Preserves tag values and processes them without alteration.
-
+- **Native component**: Runs inside foobar2000 on Windows, no wrappers.  
+- **Predictable rules**: Deterministic scrobble qualification.  
+- **Offline caching**: Stores failed scrobbles and submits them later.  
+- **Now Playing**: Handles Last.fm Now Playing updates correctly.  
+- **One-time auth**: Requires authentication only once.  
+- **Low overhead**: Lean implementation with no third-party dependencies.  
+- **Playback validation**: Rejects malformed, invalid, or duplicate scrobbles.  
+- **Dynamic sources**: Fully supports radio streams and dynamic playback metadata.  
+- **Title Formatting**: Uses foobar2000 Title Formatting for input metadata.  
+- **Regex filtering**: Filters unwanted scrobbles using regular expressions.  
+- **Correct metadata handling**: Preserves valid tag values before submission.  
+- **Console logging**: Fully reports impactful internal scrobbling actions.  
+- **Open source**: Released under the MIT License.  
 
 ### Documentation
 
