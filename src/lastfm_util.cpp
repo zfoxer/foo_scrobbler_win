@@ -10,18 +10,6 @@
 #include "lastfm_util.h"
 #include "debug.h"
 
-#if defined(__APPLE__)
-#include <CommonCrypto/CommonDigest.h>
-#else
-#include <foobar2000/SDK/hasher_md5.h>
-#endif
-
-#if !defined(__APPLE__)
-#include <windows.h>
-#include <bcrypt.h>
-#pragma comment(lib, "bcrypt.lib")
-#endif
-
 #include <string>
 #include <cctype>
 #include <cstring>
@@ -80,87 +68,10 @@ std::string cleanTagValue(const char* value)
 
 std::string md5HexLower(const std::string& data)
 {
-#if defined(__APPLE__)
+    const auto digest = hasher_md5::get()->process_single(data.data(), data.size());
+    pfc::string8 hex = pfc::format_hexdump_lowercase(digest.m_data, sizeof(digest.m_data), "");
 
-    unsigned char digest[CC_MD5_DIGEST_LENGTH];
-    CC_MD5(data.data(), (CC_LONG)data.size(), digest);
-
-    static const char hex[] = "0123456789abcdef";
-    std::string out;
-    out.reserve(CC_MD5_DIGEST_LENGTH * 2);
-
-    for (int i = 0; i < CC_MD5_DIGEST_LENGTH; ++i)
-    {
-        const unsigned char b = digest[i];
-        out.push_back(hex[b >> 4]);
-        out.push_back(hex[b & 0x0F]);
-    }
-    return out;
-
-#else // Windows (BCrypt)
-
-    BCRYPT_ALG_HANDLE hAlg = nullptr;
-    BCRYPT_HASH_HANDLE hHash = nullptr;
-
-    NTSTATUS st = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_MD5_ALGORITHM, nullptr, 0);
-    if (st < 0)
-        return {};
-
-    DWORD hashObjLen = 0, cb = 0;
-    st = BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH, (PUCHAR)&hashObjLen, sizeof(hashObjLen), &cb, 0);
-    if (st < 0)
-    {
-        BCryptCloseAlgorithmProvider(hAlg, 0);
-        return {};
-    }
-
-    DWORD hashLen = 0;
-    st = BCryptGetProperty(hAlg, BCRYPT_HASH_LENGTH, (PUCHAR)&hashLen, sizeof(hashLen), &cb, 0);
-    if (st < 0 || hashLen != 16)
-    {
-        BCryptCloseAlgorithmProvider(hAlg, 0);
-        return {};
-    }
-
-    std::string hashObject;
-    hashObject.resize(hashObjLen);
-
-    st = BCryptCreateHash(hAlg, &hHash, (PUCHAR)hashObject.data(), hashObjLen, nullptr, 0, 0);
-    if (st < 0)
-    {
-        BCryptCloseAlgorithmProvider(hAlg, 0);
-        return {};
-    }
-
-    st = BCryptHashData(hHash, (PUCHAR)data.data(), (ULONG)data.size(), 0);
-    if (st < 0)
-    {
-        BCryptDestroyHash(hHash);
-        BCryptCloseAlgorithmProvider(hAlg, 0);
-        return {};
-    }
-
-    unsigned char digest[16];
-    st = BCryptFinishHash(hHash, digest, sizeof(digest), 0);
-
-    BCryptDestroyHash(hHash);
-    BCryptCloseAlgorithmProvider(hAlg, 0);
-
-    if (st < 0)
-        return {};
-
-    static const char hex[] = "0123456789abcdef";
-    std::string out;
-    out.reserve(32);
-    for (int i = 0; i < 16; ++i)
-    {
-        const unsigned char b = digest[i];
-        out.push_back(hex[b >> 4]);
-        out.push_back(hex[b & 0x0F]);
-    }
-    return out;
-
-#endif
+    return std::string(hex.c_str());
 }
 
 std::string urlEncode(const std::string& value)
