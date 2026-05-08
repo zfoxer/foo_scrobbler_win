@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.0.9  
+**Release:** 1.1.0  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -83,6 +83,13 @@ The project logo and related visual brand assets are not covered by the MIT Lice
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.1.0    2026-05-09    Update queue draining with API-supported batch scrobbling.
+                       Fix rare worker races that could cause busy spins and stale queue retries.
+                       Add exclusion filtering using foobar2000 Title Formatting.
+                       Add regex filtering support for albums.
+                       Ignore scrobbling and Now Playing according to the FOO_SCROBBLER tag flag.
+                       Replace Windows BCrypt MD5 hashing with the SDK-native implementation.
+
 1.0.9    2026-03-26    Avoid reparsing the persisted scrobble queue on every access.
                        Cache compiled titleformat scripts instead of rebuilding them during playback.
                        Replace unsafe static locals in stream dedup with per-instance tracker state.

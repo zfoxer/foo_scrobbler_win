@@ -25,6 +25,7 @@
 #include <cctype>
 #include <cerrno>
 #include <atomic>
+#include <utility>
 
 namespace
 {
@@ -46,8 +47,8 @@ static const GUID GUID_CFG_LASTFM_SCROBBLES_TODAY = {
 static const GUID GUID_CFG_LASTFM_DAY_STAMP = {
     0xd1d5509e, 0xbb26, 0x451a, {0x89, 0x56, 0x89, 0x32, 0x4e, 0x12, 0x49, 0xb7}};
 
-// Dispatch at most 10 per run
-static constexpr size_t K_MAX_DISPATCH_BATCH = 10;
+// Last.fm accepts at most 50 scrobbles per track.scrobble request.
+static constexpr size_t K_MAX_DISPATCH_BATCH = 50;
 
 // Linear backoff: 60s, 120s, 180s… capped
 static constexpr int K_RETRY_STEP_SECONDS = 60;
@@ -240,7 +241,7 @@ void LastfmQueue::ensureCacheLoadedLocked() const
 
     const char* line = data;
 
-    // Optional header handling (FSQ2 / FSQ1). Headerless legacy is accepted for migration.
+    // Require a known queue header. Headerless legacy queues are no longer supported.
     {
         const char* nl = std::strchr(line, '\n');
         const std::string first = nl ? std::string(line, nl - line) : std::string(line);
@@ -249,8 +250,16 @@ void LastfmQueue::ensureCacheLoadedLocked() const
         {
             line = nl ? (nl + 1) : (line + first.size());
         }
-        else if (!first.empty() && first[0] == '#')
+        else
         {
+            const bool hasUnsupportedHeader = !first.empty() && first[0] == '#';
+            const char* const message =
+                hasUnsupportedHeader
+                    ? "Queue: unsupported persisted queue version; ignoring pending scrobbles."
+                    : "Queue: headerless legacy persisted queue is no longer supported; ignoring pending scrobbles.";
+
+            LFM_INFO(message);
+
             cacheLoaded_ = true;
             return;
         }
@@ -332,9 +341,9 @@ void LastfmQueue::saveCacheLocked()
 }
 
 LastfmQueue::DispatchOutcome
-LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
-                                          const std::function<bool()>& isShuttingDown, LastfmClient& client,
-                                          const std::function<void()>& onInvalidSession, int64_t dailyBudget)
+LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
+                                                 const std::function<bool()>& isShuttingDown, LastfmClient& client,
+                                                 const std::function<void()>& onInvalidSession, int64_t dailyBudget)
 {
     const std::time_t nowCheck = std::time(nullptr);
 
@@ -445,6 +454,150 @@ LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& sna
         }
 
         if (!u.remove)
+        {
+            u.newNextRetryTimestamp =
+                nowSchedule + std::min(u.newRetryCount * K_RETRY_STEP_SECONDS, K_RETRY_MAX_SECONDS);
+        }
+
+        out.updates.push_back(u);
+    }
+
+    return out;
+}
+
+LastfmQueue::DispatchOutcome
+LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
+                                          const std::function<bool()>& isShuttingDown, LastfmClient& client,
+                                          const std::function<void()>& onInvalidSession, int64_t dailyBudget)
+{
+    const std::time_t nowCheck = std::time(nullptr);
+
+    std::vector<const QueuedScrobble*> batch;
+    batch.reserve(maxToAttempt);
+
+    for (const auto& q : snapshot)
+    {
+        if (batch.size() >= maxToAttempt)
+            break;
+
+        if (q.nextRetryTimestamp > 0 && q.nextRetryTimestamp > nowCheck)
+            continue;
+
+        if (q.artist.empty() || q.title.empty())
+        {
+            LFM_INFO("Queue: pending still invalid metadata, deferring.");
+            continue;
+        }
+
+        batch.push_back(&q);
+    }
+
+    DispatchOutcome out;
+    out.updates.reserve(batch.size());
+
+    if (batch.empty())
+        return out;
+
+    if (isShuttingDown && isShuttingDown())
+        return out;
+
+    std::vector<LastfmScrobbleRequest> requests;
+    requests.reserve(batch.size());
+
+    for (const QueuedScrobble* q : batch)
+    {
+        LastfmScrobbleRequest request;
+        request.track.artist = q->artist;
+        request.track.title = q->title;
+        request.track.album = q->album;
+        request.track.albumArtist = q->albumArtist;
+        request.track.mbid = q->mbid;
+        request.track.durationSeconds = q->durationSeconds;
+        request.playbackSeconds = q->playbackSeconds;
+        request.startTimestamp = q->startTimestamp;
+        requests.push_back(std::move(request));
+    }
+
+    const LastfmScrobbleResult batchResult = client.scrobbleBatch(requests);
+
+    if (batchResult == LastfmScrobbleResult::SUCCESS)
+    {
+        for (const QueuedScrobble* q : batch)
+        {
+            RetryUpdate u;
+            u.id = q->id;
+            u.remove = true;
+            out.updates.push_back(u);
+        }
+
+        if (isShuttingDown && isShuttingDown())
+            return out;
+
+        cfgLastfmScrobblesToday = cfgLastfmScrobblesToday.get() + static_cast<int>(batch.size());
+        return out;
+    }
+
+    if (batchResult == LastfmScrobbleResult::INVALID_SESSION)
+    {
+        if (onInvalidSession)
+            onInvalidSession();
+        return out;
+    }
+
+    if (batchResult == LastfmScrobbleResult::OTHER_ERROR)
+    {
+        LFM_INFO(
+            "Queue: batch scrobble returned OTHER_ERROR, falling back to singles for count=" << (unsigned)batch.size());
+        return dispatchSinglesAndBuildRetryUpdates(snapshot, maxToAttempt, isShuttingDown, client, onInvalidSession,
+                                                   dailyBudget);
+    }
+
+    const std::time_t nowSchedule = std::time(nullptr);
+
+    for (const QueuedScrobble* q : batch)
+    {
+        RetryUpdate u;
+        u.id = q->id;
+        u.newOtherErrorCount = q->otherErrorCount;
+        u.newRetryCount = std::min(q->retryCount + 1, 100);
+
+        if (batchResult == LastfmScrobbleResult::RATE_LIMITED)
+        {
+            u.newRetryCount = q->retryCount;
+            u.newOtherErrorCount = 0;
+            u.newNextRetryTimestamp = q->nextRetryTimestamp;
+            out.rateLimited = true;
+        }
+        else if (batchResult == LastfmScrobbleResult::TEMPORARY_ERROR)
+        {
+            u.newOtherErrorCount = 0;
+        }
+        else if (batchResult == LastfmScrobbleResult::OTHER_ERROR)
+        {
+            u.newOtherErrorCount = q->otherErrorCount + 1;
+
+            if (u.newOtherErrorCount >= 5)
+            {
+                u.remove = true;
+                LFM_INFO("Queue: dropping scrobble after repeated OTHER_ERRORs: "
+                         << q->artist.c_str() << " - " << q->title.c_str()
+                         << " (otherErrorCount=" << u.newOtherErrorCount << ")");
+            }
+        }
+        else
+        {
+            u.newOtherErrorCount = q->otherErrorCount + 1;
+
+            if (u.newOtherErrorCount >= 5)
+            {
+                u.remove = true;
+                LFM_INFO("Queue: dropping scrobble after repeated unknown errors: "
+                         << q->artist.c_str() << " - " << q->title.c_str()
+                         << " (otherErrorCount=" << u.newOtherErrorCount << ")");
+            }
+        }
+
+        if (!u.remove && batchResult != LastfmScrobbleResult::RATE_LIMITED)
         {
             u.newNextRetryTimestamp =
                 nowSchedule + std::min(u.newRetryCount * K_RETRY_STEP_SECONDS, K_RETRY_MAX_SECONDS);

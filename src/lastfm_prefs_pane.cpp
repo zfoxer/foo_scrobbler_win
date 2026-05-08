@@ -18,6 +18,7 @@
 
 namespace
 {
+
 // Preferences → Advanced → Tools → Foo Scrobbler
 static const GUID GUID_LASTFM_PREFS_BRANCH = {
     0x8e0aa52b, 0xdd04, 0x4935, {0x92, 0xcd, 0x64, 0xb6, 0xc1, 0x8b, 0x65, 0x2e}};
@@ -66,6 +67,12 @@ static const GUID GUID_LASTFM_PREFS_EXCLUDE_ARTISTS = {
 
 static const GUID GUID_LASTFM_PREFS_EXCLUDE_TITLES = {
     0x3fab6a41, 0xa514, 0x4836, {0x9d, 0x58, 0x67, 0x2b, 0x2e, 0x4b, 0x4a, 0x1e}};
+
+static const GUID GUID_LASTFM_PREFS_EXCLUDE_ALBUMS = {
+    0x37f094fa, 0x21cf, 0x45cc, {0xa6, 0x43, 0x5a, 0x22, 0x6a, 0x3d, 0xb2, 0x43}};
+
+static const GUID GUID_LASTFM_PREFS_EXCLUDE_TF = {
+    0x55925391, 0x8787, 0x427f, {0xa2, 0x16, 0x28, 0xe2, 0x58, 0x24, 0x9f, 0x48}};
 
 static const GUID GUID_LASTFM_PREFS_TF_ARTIST = {
     0x02ef9422, 0x82ee, 0x457a, {0xb0, 0x1f, 0x71, 0x87, 0x69, 0xe0, 0x3e, 0xcb}};
@@ -184,6 +191,14 @@ static service_factory_single_t<advconfig_entry_string_impl>
 static service_factory_single_t<advconfig_entry_string_impl>
     g_excludeTitles("Exclude titles (text or regex; ';' separated)", GUID_LASTFM_PREFS_EXCLUDE_TITLES,
                     GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 3.0, "", 0);
+
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_excludeAlbums("Exclude albums (text or regex; ';' separated)", GUID_LASTFM_PREFS_EXCLUDE_ALBUMS,
+                    GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 4.0, "", 0);
+
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_excludeTf("Exclude by Title Formatting (reject if output is non-empty)", GUID_LASTFM_PREFS_EXCLUDE_TF,
+                GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 5.0, "", 0);
 
 static void enforceOneOfN(const GUID* ids, std::size_t n, std::size_t defaultIndex)
 {
@@ -322,6 +337,16 @@ std::string lastfmExcludedArtistsPatternList()
 std::string lastfmExcludedTitlesPatternList()
 {
     return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_TITLES);
+}
+
+std::string lastfmExcludedAlbumsPatternList()
+{
+    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_ALBUMS);
+}
+
+std::string lastfmExcludedTfExpression()
+{
+    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_TF);
 }
 
 std::string lastfmArtistTf()

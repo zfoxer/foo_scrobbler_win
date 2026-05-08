@@ -68,6 +68,9 @@ static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
     if (!handle->get_info(info))
         return false;
 
+    if (!lastfm::util::fooScrobblerTagAllowsSubmission(info))
+        return false;
+
     out.artist = lastfm::util::cleanTagValue(info.meta_get("artist", 0));
     out.title = lastfm::util::cleanTagValue(info.meta_get("title", 0));
     out.album = lastfm::util::cleanTagValue(info.meta_get("album", 0));
@@ -207,8 +210,6 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
             LastfmAuthState state;
             if (authenticator.completeAuth(state))
             {
-                popup_message::g_show("Authentication complete.", "Foo Scrobbler");
-
                 auto& core = LastfmCore::instance();
 
                 // Prevent cross-account submission:
@@ -227,6 +228,10 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
                     lastfmSetQueueOwnerUsername(newUser.c_str());
                 }
                 // else same user -> keep queue as-is
+
+                lastfmSetAuthState(state);
+                popup_message::g_show("Authentication complete.", "Foo Scrobbler");
+
                 core.scrobbler().onAuthenticationRecovered();
                 core.scrobbler().retryAsync();
             }

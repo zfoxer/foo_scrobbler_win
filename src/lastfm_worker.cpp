@@ -150,8 +150,20 @@ void LastfmWorker::threadMain()
         {
             std::unique_lock<std::mutex> lock(mtx_);
 
+            const auto waitNow = Clock::now();
+
             if (pendingNowPlaying_.has_value())
-                nextWake = Clock::now();
+            {
+                if (lastNowPlayingSent_ == Clock::time_point::min())
+                {
+                    nextWake = waitNow;
+                }
+                else
+                {
+                    const auto nextNowPlaying = lastNowPlayingSent_ + cfg_.nowPlayingMinInterval;
+                    nextWake = std::min(nextWake, nextNowPlaying <= waitNow ? waitNow : nextNowPlaying);
+                }
+            }
 
             if (!cmds_.empty())
             {
@@ -166,8 +178,8 @@ void LastfmWorker::threadMain()
             }
             else
             {
-                cv_.wait_until(lock, nextWake, [this]()
-                               { return stopRequested_.load() || !cmds_.empty() || pendingNowPlaying_.has_value(); });
+                // Recompute timing after any notification; queued work may still be scheduled for the future.
+                cv_.wait_until(lock, nextWake);
             }
 
             // Pop first eligible command (notBefore <= now)
@@ -283,19 +295,25 @@ void LastfmWorker::handleDrain()
     const std::size_t pending0 = queue_.getPendingScrobbleCount();
     const bool enforceCooldown = pending0 > COOLDOWN_LIMIT;
 
-    if (enforceCooldown)
-    {
-        if (now - lastDrain_ < cfg_.drainMinInterval)
-            return;
-        lastDrain_ = now;
-    }
-
     // Drain only if something is due
     const std::time_t nowWall = std::time(nullptr);
     if (pending0 == 0)
         return;
     if (!queue_.hasDueScrobble(nowWall))
         return;
+
+    if (enforceCooldown && lastDrain_ != Clock::time_point::min())
+    {
+        const auto elapsed = now - lastDrain_;
+        if (elapsed < cfg_.drainMinInterval)
+        {
+            postDrainAfter(std::chrono::duration_cast<std::chrono::milliseconds>(cfg_.drainMinInterval - elapsed));
+            return;
+        }
+    }
+
+    if (enforceCooldown)
+        lastDrain_ = now;
 
     const auto budgetEnd = Clock::now() + cfg_.drainBudget;
 
@@ -309,6 +327,9 @@ void LastfmWorker::handleDrain()
         if (shuttingDown_.load(std::memory_order_acquire) || stopRequested_.load(std::memory_order_acquire))
             break;
 
+        if (enforceCooldown)
+            break;
+
         if (queue_.getPendingScrobbleCount() == 0)
             break;
 
@@ -319,9 +340,11 @@ void LastfmWorker::handleDrain()
     }
 
     // If still due, schedule a follow-up soon (paced)
+    const auto pendingAfter = queue_.getPendingScrobbleCount();
     if (!shuttingDown_.load(std::memory_order_acquire) && !stopRequested_.load(std::memory_order_acquire) &&
-        queue_.getPendingScrobbleCount() > 0 && queue_.hasDueScrobble(std::time(nullptr)))
+        pendingAfter > 0 && queue_.hasDueScrobble(std::time(nullptr)))
     {
-        postDrainAfter(std::chrono::milliseconds(250));
+        const auto delay = enforceCooldown ? cfg_.drainMinInterval : std::chrono::milliseconds(250);
+        postDrainAfter(delay);
     }
 }

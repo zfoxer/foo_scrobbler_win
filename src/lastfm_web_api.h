@@ -10,13 +10,22 @@
 #include "sdk_bootstrap.h"
 
 #include <ctime>
+#include <vector>
 
 #include "lastfm_scrobble_result.h"
 #include "lastfm_track_info.h"
+
+struct LastfmScrobbleRequest
+{
+    LastfmTrackInfo track;
+    double playbackSeconds = 0.0;
+    std::time_t startTimestamp = 0;
+};
 
 class LastfmWebApi
 {
   public:
     bool updateNowPlaying(const LastfmTrackInfo& track);
     LastfmScrobbleResult scrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startTimestamp);
+    LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests);
 };
