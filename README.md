@@ -68,14 +68,6 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
   <img src="assets/prefs_win.png" alt="Foo Scrobbler Settings" width="800" />
 </p>
 
-### Licensing notes
-
-The source code of this project is licensed under the MIT License.
-
-The SDK is proprietary and is not covered by the MIT License. It remains the property of its original author (Peter Pawlowski / foobar2000).
-
-The project logo and related visual brand assets are not covered by the MIT License and remain the intellectual property of Konstantinos Kyriakopoulos. All rights reserved.
-
 
 ### Release notes
 
