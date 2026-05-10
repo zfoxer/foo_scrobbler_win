@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.1.0  
+**Release:** 1.1.1  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -75,6 +75,10 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.1.1    2026-05-11    Preserve order of TF input and TF exclusion filters.
+                       Improve batch scrobbling error logs.
+                       Use backed-off, not-due scrobbles, to fill batches for small queues.
+
 1.1.0    2026-05-09    Update queue draining with API-supported batch scrobbling.
                        Fix rare worker races that could cause busy spins and stale queue retries.
                        Add exclusion filtering using foobar2000 Title Formatting.
