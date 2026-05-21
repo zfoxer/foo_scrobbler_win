@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.1.1  
+**Release:** 1.1.2  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -75,6 +75,9 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.1.2    2026-05-21    Refresh edited playback metadata through the same filters before NP or queue updates for consistency.
+                       Fix Last.fm error 9 re-auth console spam.
+
 1.1.1    2026-05-11    Preserve order of TF input and TF exclusion filters.
                        Improve batch scrobbling error logs.
                        Use backed-off, not-due scrobbles, to fill batches for small queues.

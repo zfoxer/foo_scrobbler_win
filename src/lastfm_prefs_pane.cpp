@@ -105,28 +105,27 @@ static advconfig_branch_factory g_lastfmPrefsDynamicBranchFactory("Dynamic sourc
                                                                   GUID_LASTFM_PREFS_BRANCH, 3);
 
 static service_factory_single_t<advconfig_entry_checkbox_impl>
-    g_tagCheckboxTreatVA("Treat \"Various Artists\" as empty (Album Artist only)", GUID_LASTFM_TAG_CHECKBOX_VA_AS_EMPTY,
+    g_tagCheckboxTreatVA("Treat \"Various Artists\" as empty (Album Artist only)",
+                         "foo_scrobbler.tags.compilation.treat_va_empty", GUID_LASTFM_TAG_CHECKBOX_VA_AS_EMPTY,
                          GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 4.0, false, false, 0);
 
-static service_factory_single_t<advconfig_entry_string_impl> g_tagArtistTf("Artist (Title Formatting)",
-                                                                           GUID_LASTFM_PREFS_TF_ARTIST,
-                                                                           GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 0.0,
-                                                                           "[%ARTIST%]", 0);
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_tagArtistTf("Artist (Title Formatting)", "foo_scrobbler.tf.artist", GUID_LASTFM_PREFS_TF_ARTIST,
+                  GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 0.0, "[%ARTIST%]", 0);
 
 static service_factory_single_t<advconfig_entry_string_impl> g_tagAlbumArtistTf("Album Artist (Title Formatting)",
+                                                                                "foo_scrobbler.tf.album_artist",
                                                                                 GUID_LASTFM_PREFS_TF_ALBUM_ARTIST,
                                                                                 GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING,
                                                                                 1.0, "[%ALBUM ARTIST%]", 0);
 
-static service_factory_single_t<advconfig_entry_string_impl> g_tagTitleTf("Title (Title Formatting)",
-                                                                          GUID_LASTFM_PREFS_TF_TITLE,
-                                                                          GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 2.0,
-                                                                          "[%TITLE%]", 0);
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_tagTitleTf("Title (Title Formatting)", "foo_scrobbler.tf.title", GUID_LASTFM_PREFS_TF_TITLE,
+                 GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 2.0, "[%TITLE%]", 0);
 
-static service_factory_single_t<advconfig_entry_string_impl> g_tagAlbumTf("Album (Title Formatting)",
-                                                                          GUID_LASTFM_PREFS_TF_ALBUM,
-                                                                          GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 3.0,
-                                                                          "[%ALBUM%]", 0);
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_tagAlbumTf("Album (Title Formatting)", "foo_scrobbler.tf.album", GUID_LASTFM_PREFS_TF_ALBUM,
+                 GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 3.0, "[%ALBUM%]", 0);
 
 static bool advGetCheckboxState(const GUID& g)
 {
@@ -145,60 +144,60 @@ static void advSetCheckboxState(const GUID& g, bool v)
 }
 
 // Radios
-static service_factory_single_t<advconfig_entry_checkbox_impl> g_radio0("None", GUID_LASTFM_PREFS_RADIO_0,
+static service_factory_single_t<advconfig_entry_checkbox_impl> g_radio0("None", "foo_scrobbler.console.no",
+                                                                        GUID_LASTFM_PREFS_RADIO_0,
                                                                         GUID_LASTFM_PREFS_BRANCH_CONSOLE, 0.0, false,
                                                                         true, // isRadio
                                                                         0     // flags
 );
 
-static service_factory_single_t<advconfig_entry_checkbox_impl>
-    g_radio1("Basic", GUID_LASTFM_PREFS_RADIO_1, GUID_LASTFM_PREFS_BRANCH_CONSOLE, 1.0, true, true, 0);
+static service_factory_single_t<advconfig_entry_checkbox_impl> g_radio1("Basic", "foo_scrobbler.console.basic",
+                                                                        GUID_LASTFM_PREFS_RADIO_1,
+                                                                        GUID_LASTFM_PREFS_BRANCH_CONSOLE, 1.0, true,
+                                                                        true, 0);
 
-static service_factory_single_t<advconfig_entry_checkbox_impl>
-    g_radio2("Debug", GUID_LASTFM_PREFS_RADIO_2, GUID_LASTFM_PREFS_BRANCH_CONSOLE, 2.0, false, true, 0);
+static service_factory_single_t<advconfig_entry_checkbox_impl> g_radio2("Debug", "foo_scrobbler.console.debug",
+                                                                        GUID_LASTFM_PREFS_RADIO_2,
+                                                                        GUID_LASTFM_PREFS_BRANCH_CONSOLE, 2.0, false,
+                                                                        true, 0);
 
 // Checkboxes, defaults: no, no
-static service_factory_single_t<advconfig_entry_checkbox_impl> g_checkbox0("Disable NowPlaying notifications",
-                                                                           GUID_LASTFM_PREFS_CHECKBOX_0,
-                                                                           GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 0.0,
-                                                                           false, false, 0);
+static service_factory_single_t<advconfig_entry_checkbox_impl>
+    g_checkbox0("Disable NowPlaying notifications", "foo_scrobbler.scrobbling.disable_nowplaying",
+                GUID_LASTFM_PREFS_CHECKBOX_0, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 0.0, false, false, 0);
 
-static service_factory_single_t<advconfig_entry_checkbox_impl> g_checkbox1("Only scrobble from media library",
-                                                                           GUID_LASTFM_PREFS_CHECKBOX_1,
-                                                                           GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 1.0,
-                                                                           false, false, 0);
+static service_factory_single_t<advconfig_entry_checkbox_impl>
+    g_checkbox1("Only scrobble from media library", "foo_scrobbler.scrobbling.only_from_library",
+                GUID_LASTFM_PREFS_CHECKBOX_1, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 1.0, false, false, 0);
 
 // Dynamic sources (3-choice radio group)
-static service_factory_single_t<advconfig_entry_checkbox_impl> g_dynamicRadio0("No dynamic sources",
-                                                                               GUID_LASTFM_PREFS_DYNAMIC_RADIO_0,
-                                                                               GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 0.0,
-                                                                               false, true, 0);
+static service_factory_single_t<advconfig_entry_checkbox_impl>
+    g_dynamicRadio0("No dynamic sources", "foo_scrobbler.dynamic.no", GUID_LASTFM_PREFS_DYNAMIC_RADIO_0,
+                    GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 0.0, false, true, 0);
 
-static service_factory_single_t<advconfig_entry_checkbox_impl> g_dynamicRadio1("Only NP notifications",
-                                                                               GUID_LASTFM_PREFS_DYNAMIC_RADIO_1,
-                                                                               GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 1.0,
-                                                                               false, true, 0);
+static service_factory_single_t<advconfig_entry_checkbox_impl>
+    g_dynamicRadio1("Only NP notifications", "foo_scrobbler.dynamic.np_only", GUID_LASTFM_PREFS_DYNAMIC_RADIO_1,
+                    GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 1.0, false, true, 0);
 
-static service_factory_single_t<advconfig_entry_checkbox_impl> g_dynamicRadio2("NP & Scrobbling",
-                                                                               GUID_LASTFM_PREFS_DYNAMIC_RADIO_2,
-                                                                               GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 2.0,
-                                                                               true, true, 0);
+static service_factory_single_t<advconfig_entry_checkbox_impl>
+    g_dynamicRadio2("NP & Scrobbling", "foo_scrobbler.dynamic.np_and_scrobble", GUID_LASTFM_PREFS_DYNAMIC_RADIO_2,
+                    GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 2.0, true, true, 0);
 
 static service_factory_single_t<advconfig_entry_string_impl>
-    g_excludeArtists("Exclude artists (text or regex; ';' separated)", GUID_LASTFM_PREFS_EXCLUDE_ARTISTS,
-                     GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 2.0, "", 0);
+    g_excludeArtists("Exclude artists (text or regex; ';' separated)", "foo_scrobbler.scrobbling.exclude_artists",
+                     GUID_LASTFM_PREFS_EXCLUDE_ARTISTS, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 2.0, "", 0);
 
 static service_factory_single_t<advconfig_entry_string_impl>
-    g_excludeTitles("Exclude titles (text or regex; ';' separated)", GUID_LASTFM_PREFS_EXCLUDE_TITLES,
-                    GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 3.0, "", 0);
+    g_excludeTitles("Exclude titles (text or regex; ';' separated)", "foo_scrobbler.scrobbling.exclude_titles",
+                    GUID_LASTFM_PREFS_EXCLUDE_TITLES, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 3.0, "", 0);
 
 static service_factory_single_t<advconfig_entry_string_impl>
-    g_excludeAlbums("Exclude albums (text or regex; ';' separated)", GUID_LASTFM_PREFS_EXCLUDE_ALBUMS,
-                    GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 4.0, "", 0);
+    g_excludeAlbums("Exclude albums (text or regex; ';' separated)", "foo_scrobbler.scrobbling.exclude_albums",
+                    GUID_LASTFM_PREFS_EXCLUDE_ALBUMS, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 4.0, "", 0);
 
 static service_factory_single_t<advconfig_entry_string_impl>
-    g_excludeTf("Exclude by Title Formatting (reject if output is non-empty)", GUID_LASTFM_PREFS_EXCLUDE_TF,
-                GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 5.0, "", 0);
+    g_excludeTf("Exclude by Title Formatting (reject if output is non-empty)", "foo_scrobbler.scrobbling.exclude_tf",
+                GUID_LASTFM_PREFS_EXCLUDE_TF, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 5.0, "", 0);
 
 static void enforceOneOfN(const GUID* ids, std::size_t n, std::size_t defaultIndex)
 {
