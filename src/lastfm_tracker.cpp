@@ -8,9 +8,9 @@
 #include "stdafx.h"
 
 #include "lastfm_exclusion_filters.h"
-#include "lastfm_prefs_pane.h"
 #include "lastfm_tracker.h"
 #include "lastfm_core.h"
+#include "lastfm_settings.h"
 #include "lastfm_state.h"
 #include "lastfm_util.h"
 #include "debug.h"
@@ -43,7 +43,7 @@ static std::string evalTitleFormat(const metadb_handle_ptr& track, const service
 
 static void applyVariousArtistsRule(std::string& albumArtist)
 {
-    if (!lastfmTagTreatVariousArtistsAsEmpty())
+    if (!lastfm::settings::treatVariousArtistsAsEmpty())
         return;
 
     if (albumArtist.empty())
@@ -79,6 +79,21 @@ static bool isNetworkStreamPath(const metadb_handle_ptr& track)
     return (std::strncmp(p, "http://", 7) == 0) || (std::strncmp(p, "https://", 8) == 0) ||
            (std::strncmp(p, "mms://", 6) == 0) || (std::strncmp(p, "rtsp://", 7) == 0) ||
            (std::strncmp(p, "icy://", 6) == 0);
+}
+
+static int dynamicSourcesMode()
+{
+    const bool libraryOnly = lastfm::settings::onlyScrobbleFromMediaLibrary();
+    const int configuredMode = lastfm::settings::configuredDynamicSourcesMode();
+
+    if (libraryOnly && configuredMode != lastfm::settings::DynamicSourcesNone)
+    {
+        static std::atomic<bool> logged{false};
+        if (!logged.exchange(true))
+            LFM_DEBUG("Dynamic sources: overridden to 'No dynamic sources' because Only-from-library is enabled.");
+    }
+
+    return libraryOnly ? lastfm::settings::DynamicSourcesNone : configuredMode;
 }
 
 static bool looksLikeStationTitle(const std::string& title)
@@ -220,35 +235,6 @@ static bool extractStreamArtistTitle(const file_info& info, std::string& outArti
     return false;
 }
 
-static std::atomic<int> g_excludeTfLogRemaining{10};
-
-static bool hasNonWhitespaceOutput(const char* value)
-{
-    if (!value)
-        return false;
-
-    for (const unsigned char* p = reinterpret_cast<const unsigned char*>(value); *p; ++p)
-    {
-        if (!std::isspace(*p))
-            return true;
-    }
-
-    return false;
-}
-
-static void logTfExcludeMatchLimited(const char* value)
-{
-    int r = g_excludeTfLogRemaining.load(std::memory_order_relaxed);
-    while (r > 0)
-    {
-        if (g_excludeTfLogRemaining.compare_exchange_weak(r, r - 1, std::memory_order_relaxed))
-        {
-            LFM_DEBUG("Excluded by Title Formatting filter: " << (value ? value : ""));
-            return;
-        }
-    }
-}
-
 } // namespace
 
 void LastfmTracker::recompileTfIfNeeded()
@@ -267,25 +253,13 @@ void LastfmTracker::recompileTfIfNeeded()
             compiler->compile_safe(script, expr.c_str());
     };
 
-    compileIfChanged(lastfmArtistTf(), cachedArtistTfExpr_, artistTf_);
-    compileIfChanged(lastfmAlbumArtistTf(), cachedAlbumArtistTfExpr_, albumArtistTf_);
-    compileIfChanged(lastfmTitleTf(), cachedTitleTfExpr_, titleTf_);
-    compileIfChanged(lastfmAlbumTf(), cachedAlbumTfExpr_, albumTf_);
+    compileIfChanged(lastfm::settings::artistTitleFormat(), cachedArtistTfExpr_, artistTf_);
+    compileIfChanged(lastfm::settings::albumArtistTitleFormat(), cachedAlbumArtistTfExpr_, albumArtistTf_);
+    compileIfChanged(lastfm::settings::titleTitleFormat(), cachedTitleTfExpr_, titleTf_);
+    compileIfChanged(lastfm::settings::albumTitleFormat(), cachedAlbumTfExpr_, albumTf_);
 
     if (!fallbackArtistTf_.is_valid())
-        compiler->compile_safe(fallbackArtistTf_, "[%ARTIST%]");
-
-    const std::string excludeExpr = lastfmExcludedTfExpression();
-    if (excludeExpr != cachedExcludeTfExpr_)
-    {
-        cachedExcludeTfExpr_ = excludeExpr;
-        excludeTf_.release();
-
-        if (!excludeExpr.empty() && !compiler->compile(excludeTf_, excludeExpr.c_str()))
-        {
-            LFM_INFO("Exclude Title Formatting: invalid expression ignored.");
-        }
-    }
+        compiler->compile_safe(fallbackArtistTf_, "[%Artist%]");
 }
 
 void LastfmTracker::fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTrackInfo& out)
@@ -299,43 +273,12 @@ void LastfmTracker::fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTr
 
     applyVariousArtistsRule(out.albumArtist);
 
-    if (lastfmTagTreatVariousArtistsAsEmpty() && isVariousArtistsValue(out.artist) && out.albumArtist.empty())
+    if (lastfm::settings::treatVariousArtistsAsEmpty() && isVariousArtistsValue(out.artist) && out.albumArtist.empty())
     {
         std::string fallbackArtist = evalTitleFormat(track, fallbackArtistTf_);
         if (!fallbackArtist.empty())
             out.artist = fallbackArtist;
     }
-}
-
-bool LastfmTracker::isExcludedByTfExpression(const metadb_handle_ptr& track, const LastfmTrackInfo& evaluated,
-                                             const file_info* externalInfo)
-{
-    recompileTfIfNeeded();
-
-    if (!track.is_valid() || !excludeTf_.is_valid())
-        return false;
-
-    file_info_impl info;
-    if (externalInfo)
-        info.copy(*externalInfo);
-    else if (!track->get_info(info))
-        return false;
-
-    // Exclusion TF sees the same core fields that Foo Scrobbler would submit,
-    // after the configured input Title Formatting has already been evaluated.
-    info.meta_set("ARTIST", evaluated.artist.c_str());
-    info.meta_set("TITLE", evaluated.title.c_str());
-    info.meta_set("ALBUM", evaluated.album.c_str());
-    info.meta_set("ALBUM ARTIST", evaluated.albumArtist.c_str());
-
-    pfc::string8 out;
-    track->format_title_from_external_info(info, nullptr, out, excludeTf_, nullptr);
-
-    if (!hasNonWhitespaceOutput(out.c_str()))
-        return false;
-
-    logTfExcludeMatchLimited(out.c_str());
-    return true;
 }
 
 unsigned LastfmTracker::get_flags()
@@ -359,6 +302,8 @@ void LastfmTracker::resetState()
     fooScrobblerTagBlockLogged = false;
 
     pendingDueToMissingMetadata = false;
+    pendingDueToExclusionFilters = false;
+    scrobbleBlockedByExclusionFilters = false;
     thresholdReachedButDeferred = false;
 
     rules.reset(0.0);
@@ -386,6 +331,17 @@ bool LastfmTracker::refreshFooScrobblerTagAllows()
 
     currentFooScrobblerTagAllows = lastfm::util::fooScrobblerTagAllowsSubmission(info);
     return currentFooScrobblerTagAllows;
+}
+
+bool LastfmTracker::trackIsExcluded(const LastfmTrackInfo& track, const file_info* externalInfo)
+{
+    return lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(track.artist, track.title, track.album) ||
+           lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(currentHandle, track, externalInfo);
+}
+
+bool LastfmTracker::currentTrackIsExcluded(const file_info* externalInfo)
+{
+    return trackIsExcluded(current, externalInfo);
 }
 
 void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
@@ -426,7 +382,7 @@ void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
         return;
 
     if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
-        isExcludedByTfExpression(currentHandle, current, &info))
+        lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(currentHandle, current, &info))
         return;
 
     auto& scrobbler = LastfmCore::instance().scrobbler();
@@ -480,7 +436,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 
     // Natural boundary: submit previous track (if eligible) before switching state.
     submitDynamicPendingIfAny();
-    submitScrobbleIfNeeded();
+    submitScrobbleIfNeeded(false);
     LastfmCore::instance().scrobbler().retryAsync();
 
     resetState();
@@ -503,18 +459,17 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
         return;
     }
 
-    if (lastfmOnlyScrobbleFromMediaLibrary() && !isTrackInMediaLibrary(track))
+    if (lastfm::settings::onlyScrobbleFromMediaLibrary() && !isTrackInMediaLibrary(track))
     {
         LFM_DEBUG("Track skipped: not in Media Library.");
         resetState();
         return;
     }
 
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
-        isExcludedByTfExpression(track, current))
+    if (currentTrackIsExcluded())
     {
-        LFM_DEBUG("Track skipped: excluded by filters.");
-        resetState();
+        LFM_DEBUG("Track deferred: excluded by filters.");
+        pendingDueToExclusionFilters = true;
         return;
     }
 
@@ -579,14 +534,14 @@ void LastfmTracker::on_playback_time(double time)
     refreshCurrentFileMetadata(!blocked);
 
     // Stream-only: cache a dynamic scrobble payload once we have >=30s effective listening.
-    maybeCacheDynamicScrobble();
+    maybeCacheDynamicScrobble(true);
 
     // If we deferred an eligible scrobble while blocked, do not fire mid-track after unblock.
     // It will be handled on stop / new-track boundaries.
     if (thresholdReachedButDeferred)
         return;
 
-    submitScrobbleIfNeeded();
+    submitScrobbleIfNeeded(true);
 }
 
 void LastfmTracker::on_playback_seek(double time)
@@ -611,22 +566,25 @@ void LastfmTracker::on_playback_pause(bool paused)
 void LastfmTracker::on_playback_stop(play_control::t_stop_reason)
 {
     submitDynamicPendingIfAny();
-    submitScrobbleIfNeeded();
+    submitScrobbleIfNeeded(false);
     auto& scrobbler = LastfmCore::instance().scrobbler();
     scrobbler.retryAsync();
     resetState();
 }
 
-void LastfmTracker::submitScrobbleIfNeeded()
+void LastfmTracker::submitScrobbleIfNeeded(bool allowFilterRecovery)
 {
     if (!isPlaying || scrobbleSent || current.durationSeconds <= 0.0)
+        return;
+
+    if (scrobbleBlockedByExclusionFilters)
         return;
 
     if (!rules.shouldScrobble())
         return;
 
     // Policy: Only submit from Media Library
-    if (lastfmOnlyScrobbleFromMediaLibrary() && currentHandle.is_valid())
+    if (lastfm::settings::onlyScrobbleFromMediaLibrary() && currentHandle.is_valid())
     {
         if (!isTrackInMediaLibrary(currentHandle))
             return;
@@ -662,9 +620,19 @@ void LastfmTracker::submitScrobbleIfNeeded()
 
     pendingDueToMissingMetadata = false;
 
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
-        isExcludedByTfExpression(currentHandle, current))
+    if (currentTrackIsExcluded())
+    {
+        if (!scrobbleBlockedByExclusionFilters)
+            LFM_DEBUG("Scrobble skipped: excluded by filters.");
+        pendingDueToExclusionFilters = true;
+        scrobbleBlockedByExclusionFilters = true;
         return;
+    }
+
+    if (pendingDueToExclusionFilters && !allowFilterRecovery)
+        return;
+
+    pendingDueToExclusionFilters = false;
 
     // Eligible, but suspended/tag-disabled -> remember and defer.
     if (lastfmIsSuspended() || !currentFooScrobblerTagAllows)
@@ -691,7 +659,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     if (!isCurrentStream)
         return;
 
-    const int mode = lastfmDynamicSourcesMode();
+    const int mode = dynamicSourcesMode();
     if (mode == 0)
         return;
 
@@ -727,26 +695,14 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
 
-    LastfmTrackInfo evaluated;
-    evaluated.artist = newArtist;
-    evaluated.title = newTitle;
-    evaluated.album = newAlbum;
-
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(newArtist, newTitle, newAlbum) ||
-        isExcludedByTfExpression(currentHandle, evaluated, &info))
-    {
-        LFM_DEBUG("Stream dynamic ignored: excluded by filters.");
-        return;
-    }
-
     // Only do scrobble-related work in mode 2.
     if (mode == 2)
     {
         // We are about to switch to a new stream "track" (dynamic metadata change).
         // If the previous segment has already reached >=30s, it should be cached.
-        maybeCacheDynamicScrobble();
-        // Submit the previous segment (if cached) BEFORE sending NP for the new one.
-        submitDynamicPendingIfAny(); // this should queue + retryAsync() internally
+        maybeCacheDynamicScrobble(false);
+        // Submit the previous segment (if cached) BEFORE switching to the new one.
+        submitDynamicPendingIfAny();
     }
 
     current.artist = newArtist;
@@ -755,6 +711,13 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
 
     // Start a new dynamic segment from this point.
     startDynamicSegment();
+
+    if (currentTrackIsExcluded(&info))
+    {
+        LFM_DEBUG("Stream dynamic deferred: excluded by filters.");
+        pendingDueToExclusionFilters = true;
+        return;
+    }
 
     if (lastfmIsSuspended())
         return;
@@ -766,7 +729,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     {
         pendingDueToMissingMetadata = false;
 
-        if (lastfmDisableNowPlaying())
+        if (lastfm::settings::disableNowPlaying())
         {
             LFM_DEBUG("Dynamic NP suppressed (stream start): " << current.artist.c_str() << " - "
                                                                << current.title.c_str());
@@ -781,7 +744,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     }
 
     // Otherwise it's an update / track change.
-    if (lastfmDisableNowPlaying())
+    if (lastfm::settings::disableNowPlaying())
     {
         LFM_DEBUG("NP suppressed (dynamic): " << current.artist.c_str() << " - " << current.title.c_str());
     }
@@ -797,6 +760,8 @@ void LastfmTracker::startDynamicSegment()
     dynamicActive = true;
     dynamicPending = false;
     dynamicSubmitted = false;
+    dynamicBlockedByExclusionFilters = false;
+    pendingDueToExclusionFilters = false;
     dynamicSegmentStartWallclock = std::time(nullptr);
 
     effectiveListenedSeconds = 0.0;
@@ -808,6 +773,7 @@ void LastfmTracker::resetDynamicSegmentState()
     dynamicActive = false;
     dynamicPending = false;
     dynamicSubmitted = false;
+    dynamicBlockedByExclusionFilters = false;
 
     dynamicPendingTrack = LastfmTrackInfo{};
     dynamicPendingPlaybackTime = 0.0;
@@ -819,16 +785,19 @@ void LastfmTracker::resetDynamicSegmentState()
     dedupLastTitle_.clear();
 }
 
-void LastfmTracker::maybeCacheDynamicScrobble()
+void LastfmTracker::maybeCacheDynamicScrobble(bool allowFilterRecovery)
 {
     // Only cache when dynamic scrobbling is enabled (mode 2).
-    if (lastfmDynamicSourcesMode() != 2)
+    if (dynamicSourcesMode() != lastfm::settings::DynamicSourcesNowPlayingAndScrobbling)
         return;
 
     if (!currentHandle.is_valid() || !isCurrentStream)
         return;
 
     if (!dynamicActive || dynamicPending || dynamicSubmitted)
+        return;
+
+    if (dynamicBlockedByExclusionFilters)
         return;
 
     if (current.artist.empty() || current.title.empty())
@@ -838,8 +807,19 @@ void LastfmTracker::maybeCacheDynamicScrobble()
     if (effectiveListenedSeconds < 30.0)
         return;
 
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album))
+    if (currentTrackIsExcluded())
+    {
+        if (!dynamicBlockedByExclusionFilters)
+            LFM_DEBUG("Stream scrobble skipped: excluded by filters.");
+        pendingDueToExclusionFilters = true;
+        dynamicBlockedByExclusionFilters = true;
         return;
+    }
+
+    if (pendingDueToExclusionFilters && !allowFilterRecovery)
+        return;
+
+    pendingDueToExclusionFilters = false;
 
     dynamicPending = true;
     dynamicPendingTrack = current;
@@ -857,11 +837,11 @@ void LastfmTracker::submitDynamicPendingIfAny()
     if (!currentHandle.is_valid() || !isCurrentStream)
         return;
 
-    if (lastfmDynamicSourcesMode() != 2)
+    if (dynamicSourcesMode() != lastfm::settings::DynamicSourcesNowPlayingAndScrobbling)
         return;
 
     // Keep global policy consistent. If user selected "only from Media Library", streams never scrobble.
-    if (lastfmOnlyScrobbleFromMediaLibrary())
+    if (lastfm::settings::onlyScrobbleFromMediaLibrary())
         return;
 
     // Do not submit while suspended; keep it cached for the next boundary after resume.
@@ -871,8 +851,7 @@ void LastfmTracker::submitDynamicPendingIfAny()
     if (!lastfmIsAuthenticated())
         return;
 
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(dynamicPendingTrack.artist, dynamicPendingTrack.title,
-                                                                  dynamicPendingTrack.album))
+    if (trackIsExcluded(dynamicPendingTrack))
     {
         dynamicSubmitted = true;
         dynamicPending = false;

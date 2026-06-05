@@ -7,29 +7,4 @@
 
 #pragma once
 
-#include "sdk_bootstrap.h"
-
-#include <string>
-
-// Advanced Preferences registration (Preferences → Advanced).
-void lastfmRegisterPrefsPane();
-
-// Advanced → Tools → Foo Scrobbler → Scrobbling
-bool lastfmOnlyScrobbleFromMediaLibrary();
-
-// 0 = No dynamic sources, 1 = NP only, 2 = NP & scrobbling
-int lastfmDynamicSourcesMode();
-
-bool lastfmDisableNowPlaying();
-
-std::string lastfmArtistTf();
-std::string lastfmAlbumArtistTf();
-std::string lastfmTitleTf();
-std::string lastfmAlbumTf();
-
-bool lastfmTagTreatVariousArtistsAsEmpty();
-
-std::string lastfmExcludedArtistsPatternList();
-std::string lastfmExcludedTitlesPatternList();
-std::string lastfmExcludedAlbumsPatternList();
-std::string lastfmExcludedTfExpression();
+// Preferences page registration lives in lastfm_prefs_pane.cpp.

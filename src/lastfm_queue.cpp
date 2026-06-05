@@ -115,8 +115,8 @@ static bool lastfmDailyBudgetExhausted(const std::function<bool()>& isShuttingDo
         if (isShuttingDown && isShuttingDown())
             return true;
 
-        cfgLastfmDayStamp = todayStamp;
-        cfgLastfmScrobblesToday = 0;
+        cfgLastfmDayStamp.set(todayStamp);
+        cfgLastfmScrobblesToday.set(0);
     }
 
     const int64_t dailyBudget = static_cast<int64_t>(cfgLastfmDailyBudget.get());
@@ -343,6 +343,48 @@ void LastfmQueue::saveCacheLocked()
     cacheLoaded_ = true;
 }
 
+LastfmQueue::RetryUpdate LastfmQueue::makeFailureRetryUpdate(const QueuedScrobble& q, LastfmScrobbleResult result,
+                                                             std::time_t nowSchedule)
+{
+    RetryUpdate u;
+    u.id = q.id;
+    u.newOtherErrorCount = q.otherErrorCount;
+    u.newRetryCount = std::min(q.retryCount + 1, 100);
+
+    if (result == LastfmScrobbleResult::RATE_LIMITED)
+    {
+        u.newRetryCount = q.retryCount;
+        u.newOtherErrorCount = 0;
+        u.newNextRetryTimestamp = q.nextRetryTimestamp;
+        return u;
+    }
+
+    if (result == LastfmScrobbleResult::TEMPORARY_ERROR)
+    {
+        u.newOtherErrorCount = 0;
+    }
+    else
+    {
+        u.newOtherErrorCount = q.otherErrorCount + 1;
+
+        if (u.newOtherErrorCount >= 5)
+        {
+            u.remove = true;
+            const char* reason = result == LastfmScrobbleResult::OTHER_ERROR ? "OTHER_ERRORs" : "unknown errors";
+            LFM_INFO("Queue: dropping scrobble after repeated " << reason << ": " << q.artist.c_str() << " - "
+                                                                << q.title.c_str()
+                                                                << " (otherErrorCount=" << u.newOtherErrorCount << ")");
+        }
+    }
+
+    if (!u.remove)
+    {
+        u.newNextRetryTimestamp = nowSchedule + std::min(u.newRetryCount * K_RETRY_STEP_SECONDS, K_RETRY_MAX_SECONDS);
+    }
+
+    return u;
+}
+
 LastfmQueue::DispatchOutcome
 LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
                                                  const std::function<bool()>& isShuttingDown, LastfmClient& client,
@@ -387,7 +429,6 @@ LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobbl
 
         RetryUpdate u;
         u.id = q.id;
-        u.newOtherErrorCount = q.otherErrorCount;
 
         if (res == LastfmScrobbleResult::SUCCESS)
         {
@@ -397,7 +438,7 @@ LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobbl
             if (isShuttingDown && isShuttingDown())
                 break;
 
-            cfgLastfmScrobblesToday = cfgLastfmScrobblesToday.get() + 1;
+            cfgLastfmScrobblesToday.set(cfgLastfmScrobblesToday.get() + 1);
 
             if (dailyBudget > 0 && cfgLastfmScrobblesToday.get() >= dailyBudget)
                 break;
@@ -416,50 +457,12 @@ LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobbl
 
         const std::time_t nowSchedule = std::time(nullptr);
 
-        u.newRetryCount = std::min(q.retryCount + 1, 100);
-
+        u = makeFailureRetryUpdate(q, res, nowSchedule);
         if (res == LastfmScrobbleResult::RATE_LIMITED)
         {
-            u.newRetryCount = q.retryCount;
-            u.newOtherErrorCount = 0;
-            u.newNextRetryTimestamp = q.nextRetryTimestamp;
             out.updates.push_back(u);
             out.rateLimited = true;
             break;
-        }
-        else if (res == LastfmScrobbleResult::TEMPORARY_ERROR)
-        {
-            u.newOtherErrorCount = 0;
-        }
-        else if (res == LastfmScrobbleResult::OTHER_ERROR)
-        {
-            u.newOtherErrorCount = q.otherErrorCount + 1;
-
-            if (u.newOtherErrorCount >= 5)
-            {
-                u.remove = true;
-                LFM_INFO("Queue: dropping scrobble after repeated OTHER_ERRORs: "
-                         << q.artist.c_str() << " - " << q.title.c_str() << " (otherErrorCount=" << u.newOtherErrorCount
-                         << ")");
-            }
-        }
-        else
-        {
-            u.newOtherErrorCount = q.otherErrorCount + 1;
-
-            if (u.newOtherErrorCount >= 5)
-            {
-                u.remove = true;
-                LFM_INFO("Queue: dropping scrobble after repeated unknown errors: "
-                         << q.artist.c_str() << " - " << q.title.c_str() << " (otherErrorCount=" << u.newOtherErrorCount
-                         << ")");
-            }
-        }
-
-        if (!u.remove)
-        {
-            u.newNextRetryTimestamp =
-                nowSchedule + std::min(u.newRetryCount * K_RETRY_STEP_SECONDS, K_RETRY_MAX_SECONDS);
         }
 
         out.updates.push_back(u);
@@ -560,7 +563,7 @@ LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& sna
         if (isShuttingDown && isShuttingDown())
             return out;
 
-        cfgLastfmScrobblesToday = cfgLastfmScrobblesToday.get() + static_cast<int>(batch.size());
+        cfgLastfmScrobblesToday.set(cfgLastfmScrobblesToday.get() + static_cast<int>(batch.size()));
         return out;
     }
 
@@ -583,52 +586,9 @@ LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& sna
 
     for (const QueuedScrobble* q : batch)
     {
-        RetryUpdate u;
-        u.id = q->id;
-        u.newOtherErrorCount = q->otherErrorCount;
-        u.newRetryCount = std::min(q->retryCount + 1, 100);
-
+        RetryUpdate u = makeFailureRetryUpdate(*q, batchResult, nowSchedule);
         if (batchResult == LastfmScrobbleResult::RATE_LIMITED)
-        {
-            u.newRetryCount = q->retryCount;
-            u.newOtherErrorCount = 0;
-            u.newNextRetryTimestamp = q->nextRetryTimestamp;
             out.rateLimited = true;
-        }
-        else if (batchResult == LastfmScrobbleResult::TEMPORARY_ERROR)
-        {
-            u.newOtherErrorCount = 0;
-        }
-        else if (batchResult == LastfmScrobbleResult::OTHER_ERROR)
-        {
-            u.newOtherErrorCount = q->otherErrorCount + 1;
-
-            if (u.newOtherErrorCount >= 5)
-            {
-                u.remove = true;
-                LFM_INFO("Queue: dropping scrobble after repeated OTHER_ERRORs: "
-                         << q->artist.c_str() << " - " << q->title.c_str()
-                         << " (otherErrorCount=" << u.newOtherErrorCount << ")");
-            }
-        }
-        else
-        {
-            u.newOtherErrorCount = q->otherErrorCount + 1;
-
-            if (u.newOtherErrorCount >= 5)
-            {
-                u.remove = true;
-                LFM_INFO("Queue: dropping scrobble after repeated unknown errors: "
-                         << q->artist.c_str() << " - " << q->title.c_str()
-                         << " (otherErrorCount=" << u.newOtherErrorCount << ")");
-            }
-        }
-
-        if (!u.remove && batchResult != LastfmScrobbleResult::RATE_LIMITED)
-        {
-            u.newNextRetryTimestamp =
-                nowSchedule + std::min(u.newRetryCount * K_RETRY_STEP_SECONDS, K_RETRY_MAX_SECONDS);
-        }
 
         out.updates.push_back(u);
     }

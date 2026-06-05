@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include "sdk_bootstrap.h"
-
 #include <ctime>
 #include <vector>
 

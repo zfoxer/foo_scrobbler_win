@@ -6,10 +6,10 @@
 //
 
 #include "stdafx.h"
-#include "sdk_bootstrap.h"
 
 #include "lastfm_auth.h"
 #include "lastfm_no.h"
+#include "lastfm_state.h"
 #include "lastfm_util.h"
 #include "debug.h"
 
@@ -163,5 +163,5 @@ void logout()
     state.isAuthenticated = false;
     state.username.clear();
     state.sessionKey.clear();
-    setAuthState(state);
+    lastfmSetAuthState(state);
 }

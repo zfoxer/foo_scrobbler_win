@@ -49,7 +49,7 @@ bool LastfmClient::completeAuth(LastfmAuthState& outState)
 
 void LastfmClient::logout()
 {
-    clearAuthentication();
+    lastfmClearAuthentication();
 }
 
 bool LastfmClient::hasPendingToken() const

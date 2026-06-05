@@ -8,14 +8,13 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-// Windows first
 #include <windows.h>
 #include <mmsystem.h>
 
-// WTL/ATL stuff
 #include <atlbase.h>
 #include <atlapp.h>
+#include <atlctrls.h>
+#include <atlframe.h>
 #include <atlwin.h>
 
-// foobar SDK umbrella (THIS is the important bit)
-#include <foobar2000/SDK/foobar2000.h>
+#include "sdk_bootstrap.h"

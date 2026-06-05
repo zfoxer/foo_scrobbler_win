@@ -34,13 +34,14 @@ class LastfmTracker : public play_callback_static
     void fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTrackInfo& out);
     void recompileTfIfNeeded();
     void resetState();
-    void submitScrobbleIfNeeded();
+    void submitScrobbleIfNeeded(bool allowFilterRecovery);
     void updateFromTrack(const metadb_handle_ptr& track);
     void handleDynamicStreamUpdate(const file_info& info);
     void refreshCurrentFileMetadata(bool allowDispatch);
     bool refreshFooScrobblerTagAllows();
-    bool isExcludedByTfExpression(const metadb_handle_ptr& track, const LastfmTrackInfo& evaluated,
-                                  const file_info* externalInfo = nullptr);
+    void maybeCacheDynamicScrobble(bool allowFilterRecovery);
+    bool trackIsExcluded(const LastfmTrackInfo& track, const file_info* externalInfo = nullptr);
+    bool currentTrackIsExcluded(const file_info* externalInfo = nullptr);
 
     std::time_t startWallclock = 0;
     bool isPlaying = false;
@@ -60,6 +61,12 @@ class LastfmTracker : public play_callback_static
     // We keep tracking tag changes and will submit once metadata becomes valid.
     bool pendingDueToMissingMetadata = false;
 
+    // Track is playing but currently blocked by user exclusion filters.
+    bool pendingDueToExclusionFilters = false;
+
+    // Track reached the scrobble point while excluded; keep it skipped even if filters change mid-track.
+    bool scrobbleBlockedByExclusionFilters = false;
+
     // Track became eligible while suspended/tag-disabled; defer submission until stop/new-track boundary.
     bool thresholdReachedButDeferred = false;
 
@@ -71,18 +78,17 @@ class LastfmTracker : public play_callback_static
     service_ptr_t<titleformat_object> titleTf_;
     service_ptr_t<titleformat_object> albumTf_;
     service_ptr_t<titleformat_object> fallbackArtistTf_;
-    service_ptr_t<titleformat_object> excludeTf_;
 
     std::string cachedArtistTfExpr_;
     std::string cachedAlbumArtistTfExpr_;
     std::string cachedTitleTfExpr_;
     std::string cachedAlbumTfExpr_;
-    std::string cachedExcludeTfExpr_;
 
     // Dynamic stream scrobble (network sources only)
     bool dynamicActive = false;
     bool dynamicPending = false; // cached after >= 30s effective listening
     bool dynamicSubmitted = false;
+    bool dynamicBlockedByExclusionFilters = false;
     LastfmTrackInfo dynamicPendingTrack{};
     double dynamicPendingPlaybackTime = 0.0;
     std::time_t dynamicPendingStartWallclock = 0;
@@ -94,6 +100,5 @@ class LastfmTracker : public play_callback_static
     // Helpers (network-only)
     void startDynamicSegment();
     void resetDynamicSegmentState();
-    void maybeCacheDynamicScrobble();
     void submitDynamicPendingIfAny();
 };

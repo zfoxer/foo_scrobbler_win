@@ -51,11 +51,11 @@ LastfmAuthState lastfmGetAuthState()
 void lastfmSetAuthState(const LastfmAuthState& state)
 {
     std::lock_guard<std::mutex> lock(authMutex);
-    cfgLastfmAuthenticated = state.isAuthenticated;
+    cfgLastfmAuthenticated.set(state.isAuthenticated);
     cfgLastfmUsername.set(state.username.c_str());
     cfgLastfmSessionKey.set(state.sessionKey.c_str());
     if (state.isAuthenticated)
-        cfgLastfmSuspended = false;
+        cfgLastfmSuspended.set(false);
 }
 
 bool lastfmIsAuthenticated()
@@ -78,10 +78,10 @@ void lastfmClearAuthentication()
     {
         std::lock_guard<std::mutex> lock(authMutex);
         user = cfgLastfmUsername.get();
-        cfgLastfmAuthenticated = false;
+        cfgLastfmAuthenticated.set(false);
         cfgLastfmUsername.set("");
         cfgLastfmSessionKey.set("");
-        cfgLastfmSuspended = false;
+        cfgLastfmSuspended.set(false);
     }
 
     pfc::string_formatter f;
@@ -96,7 +96,7 @@ void lastfmClearSuspension()
     pfc::string8 user;
     {
         std::lock_guard<std::mutex> lock(authMutex);
-        cfgLastfmSuspended = false;
+        cfgLastfmSuspended.set(false);
         user = cfgLastfmUsername.get();
     }
 
@@ -112,7 +112,7 @@ void lastfmSuspendCurrentUser()
     pfc::string8 user;
     {
         std::lock_guard<std::mutex> lock(authMutex);
-        cfgLastfmSuspended = true;
+        cfgLastfmSuspended.set(true);
         user = cfgLastfmUsername.get();
     }
 

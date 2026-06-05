@@ -6,9 +6,6 @@
 //
 
 #include "stdafx.h"
-#include "sdk_bootstrap.h"
-
-#include <foobar2000/SDK/foobar2000.h>
 
 #include "version.h"
 #include "debug.h"
@@ -29,6 +26,8 @@ class FooScrobblerWinComponent : public initquit
   public:
     void on_init() override
     {
+        lastfmSyncLogLevelFromPrefs();
+
         console::formatter f;
         f << FOOSCROBBLER_NAME << " " << FOOSCROBBLER_VERSION;
     }

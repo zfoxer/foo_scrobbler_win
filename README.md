@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.1.2  
+**Release:** 1.5.1  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -29,7 +29,7 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 
 ### Where the UI lives
 - Main menu: **Playback → Last.fm**
-- Settings: **File → Preferences → Advanced → Tools → Foo Scrobbler**
+- Settings: **File → Preferences → Tools → Foo Scrobbler**
 
 
 ### What it does
@@ -75,39 +75,55 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
-1.1.2    2026-05-21    Refresh edited playback metadata through the same filters before NP or queue updates for consistency.
-                       Fix Last.fm error 9 re-auth console spam.
+1.5.1    2026-06-06    
+Replace the Advanced settings area with a tabbed pane under Preferences → Tools → Foo Scrobbler.  
+Add four Title Formatting exclusion filter templates.  
+Fix Now Playing notifications being sent when scrobbling was resumed while playback was paused.  
+Clean up small repeated snippets of code related to retry behavior and scrobbling.  
+Hold filtered tracks until they become eligible instead of dropping them immediately.  
+Improve track metadata handling for local files and dynamic streams.  
 
-1.1.1    2026-05-11    Preserve order of TF input and TF exclusion filters.
-                       Improve batch scrobbling error logs.
-                       Use backed-off, not-due scrobbles, to fill batches for small queues.
+1.1.2    2026-05-21    
+Refresh edited playback metadata through the same filters before NP or queue updates for consistency.  
+Fix Last.fm error 9 re-auth console spam.  
 
-1.1.0    2026-05-09    Update queue draining with API-supported batch scrobbling.
-                       Fix rare worker races that could cause busy spins and stale queue retries.
-                       Add exclusion filtering using foobar2000 Title Formatting.
-                       Add regex filtering support for albums.
-                       Ignore scrobbling and Now Playing according to the FOO_SCROBBLER tag flag.
-                       Replace Windows BCrypt MD5 hashing with the SDK-native implementation.
+1.1.1    2026-05-11    
+Preserve order of TF input and TF exclusion filters.  
+Improve batch scrobbling error logs.  
+Use backed-off, not-due scrobbles, to fill batches for small queues.  
 
-1.0.9    2026-03-26    Avoid reparsing the persisted scrobble queue on every access.
-                       Cache compiled titleformat scripts instead of rebuilding them during playback.
-                       Replace unsafe static locals in stream dedup with per-instance tracker state.
-                       Last.fm back-end error 8 treated as temp, not having limited retries before discarding.
-                       Fix regression for URL opener (Windows-only).
+1.1.0    2026-05-09    
+Update queue draining with API-supported batch scrobbling.  
+Fix rare worker races that could cause busy spins and stale queue retries.  
+Add exclusion filtering using foobar2000 Title Formatting.  
+Add regex filtering support for albums.  
+Ignore scrobbling and Now Playing according to the FOO_SCROBBLER tag flag.  
+Replace Windows BCrypt MD5 hashing with the SDK-native implementation.  
 
-1.0.7    2026-03-20    Handle Last.fm rate-limit error 29 with queue cooldown.
-                       Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
-                       Merged NP code into WebAPI.
-                       Fix UI dynamic sources setting being disconnected (Windows-only).
+1.0.9    2026-03-26    
+Avoid reparsing the persisted scrobble queue on every access.  
+Cache compiled titleformat scripts instead of rebuilding them during playback.  
+Replace unsafe static locals in stream dedup with per-instance tracker state.  
+Last.fm back-end error 8 treated as temp, not having limited retries before discarding.  
+Fix regression for URL opener (Windows-only).  
 
-1.0.6    2026-03-13    Added support for foobar Title Formatting for input tags. Removed previous tag mapping.
-                       Added build for ARM64EC architecture for Windows 11.
+1.0.7    2026-03-20    
+Handle Last.fm rate-limit error 29 with queue cooldown.  
+Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.  
+Merged NP code into WebAPI.  
+Fix UI dynamic sources setting being disconnected (Windows-only).  
 
-1.0.5    2026-03-07    Added regular expressions (regex) support to filter out submissions (Advanced prefs).
-                       Fixed: Unicode track titles are now handled correctly for Now Playing and scrobbling.
-                       Switched to MIT License
+1.0.6    2026-03-13    
+Added support for foobar Title Formatting for input tags. Removed previous tag mapping.  
+Added build for ARM64EC architecture for Windows 11.  
 
-1.0.2    2026-03-01    Initial Windows release. Sharing codebase with the macOS version.
+1.0.5    2026-03-07    
+Added regular expressions (regex) support to filter out submissions (Advanced prefs).  
+Fixed: Unicode track titles are now handled correctly for Now Playing and scrobbling.  
+Switched to MIT License.  
+
+1.0.2    2026-03-01    
+Initial Windows release. Sharing codebase with the macOS version.  
 </pre>
 
 </details>

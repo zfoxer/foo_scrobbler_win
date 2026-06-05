@@ -7,368 +7,692 @@
 
 #include "stdafx.h"
 
-#include <foobar2000/SDK/advconfig.h>
-#include <foobar2000/SDK/advconfig_impl.h>
-#include <foobar2000/SDK/foobar2000.h>
-
-#include "lastfm_prefs_pane.h"
 #include "debug.h"
+#include "lastfm_prefs_helpers.h"
+#include "lastfm_settings.h"
+#include "lastfm_state.h"
 
-#include <atomic>
+#include <foobar2000/SDK/coreDarkMode.h>
+#include <helpers/atl-misc.h>
+
+#include <algorithm>
+#include <array>
+#include <initializer_list>
+#include <iterator>
+#include <map>
+#include <string>
+#include <vector>
 
 namespace
 {
+static const GUID GUID_LASTFM_PREFERENCES_PAGE = {
+    0x00b3d05b, 0x178d, 0x44bd, {0x85, 0x00, 0x48, 0x81, 0x9c, 0xba, 0x1c, 0xd6}};
 
-// Preferences → Advanced → Tools → Foo Scrobbler
-static const GUID GUID_LASTFM_PREFS_BRANCH = {
-    0x8e0aa52b, 0xdd04, 0x4935, {0x92, 0xcd, 0x64, 0xb6, 0xc1, 0x8b, 0x65, 0x2e}};
-
-static const GUID GUID_LASTFM_PREFS_RADIO_0 = {
-    0x26fab26e, 0xba49, 0x448f, {0xbd, 0x8c, 0x39, 0x83, 0x30, 0x48, 0xe6, 0x95}};
-
-static const GUID GUID_LASTFM_PREFS_RADIO_1 = {
-    0x594acffd, 0x63bb, 0x4193, {0xb6, 0x54, 0x0e, 0x36, 0xb7, 0xe5, 0xb6, 0xd2}};
-
-static const GUID GUID_LASTFM_PREFS_RADIO_2 = {
-    0x31393ed7, 0x5821, 0x4901, {0x9a, 0x32, 0x5c, 0xd3, 0x26, 0xa1, 0x66, 0x14}};
-
-static const GUID GUID_LASTFM_PREFS_CHECKBOX_0 = {
-    0x9377030d, 0xc480, 0x4322, {0xa7, 0x55, 0x63, 0xfa, 0x5c, 0xa0, 0x03, 0xb0}};
-
-static const GUID GUID_LASTFM_PREFS_CHECKBOX_1 = {
-    0xbe82ca73, 0x5083, 0x42ad, {0xaf, 0xcb, 0xf8, 0x53, 0xa5, 0x9c, 0xdd, 0x4b}};
-
-static const GUID GUID_LASTFM_PREFS_DYNAMIC_RADIO_0 = {
-    0xef7c67c0, 0xaaf1, 0x4a57, {0xb1, 0x67, 0x60, 0xa8, 0x65, 0x27, 0xa7, 0x32}}; // No dynamic sources
-
-static const GUID GUID_LASTFM_PREFS_DYNAMIC_RADIO_1 = {
-    0x91783cdd, 0xc162, 0x499f, {0xb6, 0xf2, 0x23, 0xa3, 0x06, 0xbe, 0xbb, 0x87}}; // NP only
-
-static const GUID GUID_LASTFM_PREFS_DYNAMIC_RADIO_2 = {
-    0xa3a0ebc3, 0x2e22, 0x43be, {0x93, 0x32, 0x77, 0x9c, 0x12, 0x46, 0x73, 0xd2}}; // NP & Scrobbling (default)
-
-static const GUID GUID_LASTFM_PREFS_BRANCH_CONSOLE = {
-    0x06081a03, 0x7a25, 0x4a1e, {0xa9, 0x19, 0x5e, 0x37, 0xff, 0x52, 0xb0, 0xe9}};
-
-static const GUID GUID_LASTFM_PREFS_BRANCH_SCROBBLING = {
-    0xe431a8cd, 0x8443, 0x4009, {0x96, 0x44, 0x91, 0x69, 0x7e, 0x24, 0xa9, 0x6e}};
-
-static const GUID GUID_LASTFM_PREFS_BRANCH_DYNAMIC = {
-    0xf1468164, 0x8c16, 0x4ebf, {0x9e, 0x2c, 0xff, 0x82, 0xb2, 0xa5, 0xf1, 0xa1}};
-
-static const GUID GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING = {
-    0x3ed82d09, 0x5c97, 0x48ce, {0x98, 0x84, 0x20, 0x17, 0x67, 0xfa, 0xf7, 0xe9}};
-
-static const GUID GUID_LASTFM_TAG_CHECKBOX_VA_AS_EMPTY = {
-    0x0355b218, 0xe822, 0x4186, {0x9a, 0x74, 0xd4, 0x91, 0x00, 0xc2, 0xb0, 0x61}};
-
-static const GUID GUID_LASTFM_PREFS_EXCLUDE_ARTISTS = {
-    0xcea981d8, 0xf533, 0x41be, {0x82, 0xd0, 0xfb, 0x29, 0x40, 0xd2, 0x62, 0x52}};
-
-static const GUID GUID_LASTFM_PREFS_EXCLUDE_TITLES = {
-    0x3fab6a41, 0xa514, 0x4836, {0x9d, 0x58, 0x67, 0x2b, 0x2e, 0x4b, 0x4a, 0x1e}};
-
-static const GUID GUID_LASTFM_PREFS_EXCLUDE_ALBUMS = {
-    0x37f094fa, 0x21cf, 0x45cc, {0xa6, 0x43, 0x5a, 0x22, 0x6a, 0x3d, 0xb2, 0x43}};
-
-static const GUID GUID_LASTFM_PREFS_EXCLUDE_TF = {
-    0x55925391, 0x8787, 0x427f, {0xa2, 0x16, 0x28, 0xe2, 0x58, 0x24, 0x9f, 0x48}};
-
-static const GUID GUID_LASTFM_PREFS_TF_ARTIST = {
-    0x02ef9422, 0x82ee, 0x457a, {0xb0, 0x1f, 0x71, 0x87, 0x69, 0xe0, 0x3e, 0xcb}};
-
-static const GUID GUID_LASTFM_PREFS_TF_ALBUM_ARTIST = {
-    0xc9e0418b, 0xb50d, 0x4873, {0xb6, 0x7c, 0x95, 0xdd, 0x1f, 0x26, 0xbc, 0xe4}};
-
-static const GUID GUID_LASTFM_PREFS_TF_TITLE = {
-    0x514a6656, 0xaebc, 0x419f, {0x84, 0x05, 0x2f, 0xf4, 0x26, 0xb0, 0x8f, 0x61}};
-
-static const GUID GUID_LASTFM_PREFS_TF_ALBUM = {
-    0x42c4e618, 0x0143, 0x4025, {0x81, 0xd2, 0x3c, 0x04, 0xfe, 0x11, 0xc7, 0xe9}};
-
-// Branches
-static advconfig_branch_factory g_lastfmPrefsBranchFactory("Foo Scrobbler", GUID_LASTFM_PREFS_BRANCH,
-                                                           advconfig_branch::guid_branch_tools, -50);
-
-static advconfig_branch_factory g_lastfmPrefsConsoleBranchFactory("Console info", GUID_LASTFM_PREFS_BRANCH_CONSOLE,
-                                                                  GUID_LASTFM_PREFS_BRANCH, 0);
-
-static advconfig_branch_factory g_lastfmPrefsTagFormattingBranchFactory("Tag formatting",
-                                                                        GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING,
-                                                                        GUID_LASTFM_PREFS_BRANCH, 1);
-
-static advconfig_branch_factory g_lastfmPrefsScrobblingBranchFactory("Scrobbling", GUID_LASTFM_PREFS_BRANCH_SCROBBLING,
-                                                                     GUID_LASTFM_PREFS_BRANCH, 2);
-
-static advconfig_branch_factory g_lastfmPrefsDynamicBranchFactory("Dynamic sources (overridden by library-only)",
-                                                                  GUID_LASTFM_PREFS_BRANCH_DYNAMIC,
-                                                                  GUID_LASTFM_PREFS_BRANCH, 3);
-
-static service_factory_single_t<advconfig_entry_checkbox_impl>
-    g_tagCheckboxTreatVA("Treat \"Various Artists\" as empty (Album Artist only)",
-                         "foo_scrobbler.tags.compilation.treat_va_empty", GUID_LASTFM_TAG_CHECKBOX_VA_AS_EMPTY,
-                         GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 4.0, false, false, 0);
-
-static service_factory_single_t<advconfig_entry_string_impl>
-    g_tagArtistTf("Artist (Title Formatting)", "foo_scrobbler.tf.artist", GUID_LASTFM_PREFS_TF_ARTIST,
-                  GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 0.0, "[%ARTIST%]", 0);
-
-static service_factory_single_t<advconfig_entry_string_impl> g_tagAlbumArtistTf("Album Artist (Title Formatting)",
-                                                                                "foo_scrobbler.tf.album_artist",
-                                                                                GUID_LASTFM_PREFS_TF_ALBUM_ARTIST,
-                                                                                GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING,
-                                                                                1.0, "[%ALBUM ARTIST%]", 0);
-
-static service_factory_single_t<advconfig_entry_string_impl>
-    g_tagTitleTf("Title (Title Formatting)", "foo_scrobbler.tf.title", GUID_LASTFM_PREFS_TF_TITLE,
-                 GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 2.0, "[%TITLE%]", 0);
-
-static service_factory_single_t<advconfig_entry_string_impl>
-    g_tagAlbumTf("Album (Title Formatting)", "foo_scrobbler.tf.album", GUID_LASTFM_PREFS_TF_ALBUM,
-                 GUID_LASTFM_PREFS_BRANCH_TAG_FORMATTING, 3.0, "[%ALBUM%]", 0);
-
-static bool advGetCheckboxState(const GUID& g)
+enum
 {
-    service_ptr_t<advconfig_entry_checkbox> e;
-    if (!advconfig_entry::g_find_t(e, g))
-        return false;
-    return e->get_state();
+    TabScrobbling = 0,
+    TabTags,
+    TabExclusions,
+    TabCount
+};
+
+enum ControlId
+{
+    IdTabs = 1000,
+    IdConsoleCombo,
+    IdAuthStatus,
+    IdDisableNowPlaying,
+    IdOnlyLibrary,
+    IdDynamicCombo,
+    IdTreatVariousArtists,
+    IdArtistTf,
+    IdAlbumArtistTf,
+    IdTitleTf,
+    IdAlbumTf,
+    IdExcludeArtists,
+    IdExcludeTitles,
+    IdExcludeAlbums,
+    IdExcludeTf,
+    IdTemplateGenre,
+    IdTemplateMediaKind,
+    IdTemplatePath,
+    IdTemplateComment,
+    IdTemplateGenreValue,
+    IdTemplateMediaKindValue,
+    IdTemplatePathValue,
+    IdTemplateCommentValue,
+};
+
+struct TextFieldSetting
+{
+    int id;
+    const wchar_t* label;
+    std::string (*getValue)();
+    void (*setValue)(const std::string&);
+    const char* defaultValue;
+};
+
+const TextFieldSetting kTagFields[] = {
+    {IdArtistTf, L"Artist:", lastfm::settings::artistTitleFormat, lastfm::settings::setArtistTitleFormat, "[%Artist%]"},
+    {IdAlbumArtistTf, L"Album artist:", lastfm::settings::albumArtistTitleFormat,
+     lastfm::settings::setAlbumArtistTitleFormat, "[%Album Artist%]"},
+    {IdTitleTf, L"Title:", lastfm::settings::titleTitleFormat, lastfm::settings::setTitleTitleFormat, "[%Title%]"},
+    {IdAlbumTf, L"Album:", lastfm::settings::albumTitleFormat, lastfm::settings::setAlbumTitleFormat, "[%Album%]"},
+};
+
+const TextFieldSetting kExclusionFields[] = {
+    {IdExcludeArtists, L"Artists:", lastfm::settings::excludedArtistsPatternList,
+     lastfm::settings::setExcludedArtistsPatternList, ""},
+    {IdExcludeTitles, L"Titles:", lastfm::settings::excludedTitlesPatternList,
+     lastfm::settings::setExcludedTitlesPatternList, ""},
+    {IdExcludeAlbums, L"Albums:", lastfm::settings::excludedAlbumsPatternList,
+     lastfm::settings::setExcludedAlbumsPatternList, ""},
+    {IdExcludeTf, L"Title Formatting:", lastfm::settings::excludedTitleFormatExpression,
+     lastfm::settings::setExcludedTitleFormatExpression, ""},
+};
+
+struct TemplateSetting
+{
+    int checkboxId;
+    int editId;
+    const wchar_t* label;
+    const char* field;
+    bool contains;
+    std::string (*getValue)();
+    void (*setValue)(const std::string&);
+    const char* defaultValue;
+};
+
+const TemplateSetting kTemplates[] = {
+    {IdTemplateGenre, IdTemplateGenreValue, L"Genre is:", "%Genre%", false,
+     lastfm::settings::excludedGenreTemplateValueList, lastfm::settings::setExcludedGenreTemplateValueList, "Podcast"},
+    {IdTemplateMediaKind, IdTemplateMediaKindValue, L"Media kind is:", "%Media Kind%", false,
+     lastfm::settings::excludedMediaKindTemplateValueList, lastfm::settings::setExcludedMediaKindTemplateValueList,
+     "Audiobook"},
+    {IdTemplatePath, IdTemplatePathValue, L"Path contains:", "$if2(%Path%,) $if2(%FOO_SCROBBLER_PATH%,)", true,
+     lastfm::settings::excludedPathTemplateValueList, lastfm::settings::setExcludedPathTemplateValueList,
+     ".mpc; /other/"},
+    {IdTemplateComment, IdTemplateCommentValue, L"Comment contains:", "%Comment%", true,
+     lastfm::settings::excludedCommentTemplateValueList, lastfm::settings::setExcludedCommentTemplateValueList,
+     "Interview"},
+};
+
+template <typename Callback> void forEachTextSetting(Callback callback)
+{
+    for (const auto& field : kTagFields)
+        callback(field.id, field);
+    for (const auto& field : kExclusionFields)
+        callback(field.id, field);
+    for (const auto& field : kTemplates)
+        callback(field.editId, field);
 }
 
-static void advSetCheckboxState(const GUID& g, bool v)
+std::string utf8FromWindow(HWND wnd)
 {
-    service_ptr_t<advconfig_entry_checkbox> e;
-    if (!advconfig_entry::g_find_t(e, g))
-        return;
-    e->set_state(v);
+    const int length = ::GetWindowTextLengthW(wnd);
+    std::wstring buffer(static_cast<std::size_t>(length) + 1, L'\0');
+    ::GetWindowTextW(wnd, buffer.data(), length + 1);
+    return std::string(pfc::stringcvt::string_utf8_from_wide(buffer.c_str()).get_ptr());
 }
 
-// Radios
-static service_factory_single_t<advconfig_entry_checkbox_impl> g_radio0("None", "foo_scrobbler.console.no",
-                                                                        GUID_LASTFM_PREFS_RADIO_0,
-                                                                        GUID_LASTFM_PREFS_BRANCH_CONSOLE, 0.0, false,
-                                                                        true, // isRadio
-                                                                        0     // flags
-);
-
-static service_factory_single_t<advconfig_entry_checkbox_impl> g_radio1("Basic", "foo_scrobbler.console.basic",
-                                                                        GUID_LASTFM_PREFS_RADIO_1,
-                                                                        GUID_LASTFM_PREFS_BRANCH_CONSOLE, 1.0, true,
-                                                                        true, 0);
-
-static service_factory_single_t<advconfig_entry_checkbox_impl> g_radio2("Debug", "foo_scrobbler.console.debug",
-                                                                        GUID_LASTFM_PREFS_RADIO_2,
-                                                                        GUID_LASTFM_PREFS_BRANCH_CONSOLE, 2.0, false,
-                                                                        true, 0);
-
-// Checkboxes, defaults: no, no
-static service_factory_single_t<advconfig_entry_checkbox_impl>
-    g_checkbox0("Disable NowPlaying notifications", "foo_scrobbler.scrobbling.disable_nowplaying",
-                GUID_LASTFM_PREFS_CHECKBOX_0, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 0.0, false, false, 0);
-
-static service_factory_single_t<advconfig_entry_checkbox_impl>
-    g_checkbox1("Only scrobble from media library", "foo_scrobbler.scrobbling.only_from_library",
-                GUID_LASTFM_PREFS_CHECKBOX_1, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 1.0, false, false, 0);
-
-// Dynamic sources (3-choice radio group)
-static service_factory_single_t<advconfig_entry_checkbox_impl>
-    g_dynamicRadio0("No dynamic sources", "foo_scrobbler.dynamic.no", GUID_LASTFM_PREFS_DYNAMIC_RADIO_0,
-                    GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 0.0, false, true, 0);
-
-static service_factory_single_t<advconfig_entry_checkbox_impl>
-    g_dynamicRadio1("Only NP notifications", "foo_scrobbler.dynamic.np_only", GUID_LASTFM_PREFS_DYNAMIC_RADIO_1,
-                    GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 1.0, false, true, 0);
-
-static service_factory_single_t<advconfig_entry_checkbox_impl>
-    g_dynamicRadio2("NP & Scrobbling", "foo_scrobbler.dynamic.np_and_scrobble", GUID_LASTFM_PREFS_DYNAMIC_RADIO_2,
-                    GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 2.0, true, true, 0);
-
-static service_factory_single_t<advconfig_entry_string_impl>
-    g_excludeArtists("Exclude artists (text or regex; ';' separated)", "foo_scrobbler.scrobbling.exclude_artists",
-                     GUID_LASTFM_PREFS_EXCLUDE_ARTISTS, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 2.0, "", 0);
-
-static service_factory_single_t<advconfig_entry_string_impl>
-    g_excludeTitles("Exclude titles (text or regex; ';' separated)", "foo_scrobbler.scrobbling.exclude_titles",
-                    GUID_LASTFM_PREFS_EXCLUDE_TITLES, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 3.0, "", 0);
-
-static service_factory_single_t<advconfig_entry_string_impl>
-    g_excludeAlbums("Exclude albums (text or regex; ';' separated)", "foo_scrobbler.scrobbling.exclude_albums",
-                    GUID_LASTFM_PREFS_EXCLUDE_ALBUMS, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 4.0, "", 0);
-
-static service_factory_single_t<advconfig_entry_string_impl>
-    g_excludeTf("Exclude by Title Formatting (reject if output is non-empty)", "foo_scrobbler.scrobbling.exclude_tf",
-                GUID_LASTFM_PREFS_EXCLUDE_TF, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 5.0, "", 0);
-
-static void enforceOneOfN(const GUID* ids, std::size_t n, std::size_t defaultIndex)
+void setWindowUtf8(HWND wnd, const std::string& value)
 {
-    std::size_t firstOn = n; // "none"
-    std::size_t onCount = 0;
+    ::SetWindowTextW(wnd, pfc::stringcvt::string_wide_from_utf8(value.c_str()).get_ptr());
+}
 
-    for (std::size_t i = 0; i < n; ++i)
+bool checked(HWND wnd)
+{
+    return ::SendMessageW(wnd, BM_GETCHECK, 0, 0) == BST_CHECKED;
+}
+void setChecked(HWND wnd, bool value)
+{
+    ::SendMessageW(wnd, BM_SETCHECK, value ? BST_CHECKED : BST_UNCHECKED, 0);
+}
+int comboSelection(HWND wnd)
+{
+    return static_cast<int>(::SendMessageW(wnd, CB_GETCURSEL, 0, 0));
+}
+void setComboSelection(HWND wnd, int value)
+{
+    ::SendMessageW(wnd, CB_SETCURSEL, value, 0);
+}
+
+std::string templateExpression(const TemplateSetting& t, const std::string& value)
+{
+    return lastfm::preferences::makeTemplateExpression(t.field, t.contains, value);
+}
+
+class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>, public preferences_page_instance
+{
+  public:
+    using Base = CWindowImpl<LastfmPreferencesPage, CWindow>;
+
+    explicit LastfmPreferencesPage(preferences_page_callback::ptr callback) : callback_(callback)
     {
-        if (advGetCheckboxState(ids[i]))
+    }
+
+    DECLARE_WND_CLASS_EX(L"{1C70A2BD-5B68-4D9A-9FD4-40481D5062E1}", CS_HREDRAW | CS_VREDRAW, COLOR_BTNFACE)
+
+    HWND Create(HWND parent)
+    {
+        return Base::Create(parent, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+                            WS_EX_CONTROLPARENT);
+    }
+
+    BEGIN_MSG_MAP(LastfmPreferencesPage)
+    MESSAGE_HANDLER(WM_CREATE, OnCreate)
+    MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
+    MESSAGE_HANDLER(WM_SHOWWINDOW, OnShowWindow)
+    MESSAGE_HANDLER(WM_SIZE, OnSize)
+    MESSAGE_HANDLER(WM_NOTIFY, OnNotify)
+    MESSAGE_HANDLER(WM_COMMAND, OnCommand)
+    MESSAGE_HANDLER(WM_TIMER, OnTimer)
+    END_MSG_MAP()
+
+    t_uint32 get_state() override
+    {
+        t_uint32 state = preferences_state::resettable | preferences_state::dark_mode_supported;
+        if (hasChanged())
+            state |= preferences_state::changed;
+        return state;
+    }
+
+    void apply() override
+    {
+        lastfm::settings::setConsoleLevel(comboSelection(consoleCombo_));
+        lastfmSetLogLevelFromConsoleChoice(lastfm::settings::consoleLevel());
+
+        lastfm::settings::setDisableNowPlaying(checked(disableNowPlaying_));
+        lastfm::settings::setOnlyScrobbleFromMediaLibrary(checked(onlyLibrary_));
+        lastfm::settings::setDynamicSourcesMode(comboSelection(dynamicCombo_));
+        lastfm::settings::setTreatVariousArtistsAsEmpty(checked(treatVariousArtists_));
+
+        forEachTextSetting([this](int id, const auto& setting) { setting.setValue(getText(id)); });
+
+        refreshTemplateValueCache();
+        notifyChanged();
+    }
+
+    void reset() override
+    {
+        loading_ = true;
+
+        setComboSelection(consoleCombo_, lastfm::settings::ConsoleBasic);
+        setChecked(disableNowPlaying_, false);
+        setChecked(onlyLibrary_, false);
+        setComboSelection(dynamicCombo_, lastfm::settings::DynamicSourcesNowPlayingAndScrobbling);
+        setChecked(treatVariousArtists_, false);
+
+        forEachTextSetting([this](int id, const auto& setting) { setText(id, setting.defaultValue); });
+
+        refreshTemplateValueCache();
+        refreshTemplateCheckboxes();
+        refreshDynamicEnabledState();
+
+        loading_ = false;
+        notifyChanged();
+    }
+
+  private:
+    LRESULT OnCreate(UINT, WPARAM, LPARAM, BOOL&)
+    {
+        tabs_ = ::CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_TABSTOP, 0, 0, 0,
+                                  0, m_hWnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(IdTabs)),
+                                  core_api::get_my_instance(), nullptr);
+        dark_.AddDialog(m_hWnd);
+        addDarkControl(tabs_);
+
+        insertTab(TabScrobbling, L"Scrobbling");
+        insertTab(TabTags, L"Tags");
+        insertTab(TabExclusions, L"Exclusions");
+
+        for (HWND& page : pages_)
         {
-            if (firstOn == n)
-                firstOn = i;
-            ++onCount;
+            page = ::CreateWindowExW(WS_EX_CONTROLPARENT, L"STATIC", L"", WS_CHILD | WS_CLIPCHILDREN, 0, 0, 0, 0,
+                                     m_hWnd, nullptr, core_api::get_my_instance(), nullptr);
+            dark_.AddDialog(page);
+            WIN32_OP_D(::SetWindowSubclass(page, pageSubclassProc, 0, reinterpret_cast<DWORD_PTR>(m_hWnd)));
         }
-    }
 
-    // If none ON -> select default.
-    if (onCount == 0)
-    {
-        for (std::size_t i = 0; i < n; ++i)
-            advSetCheckboxState(ids[i], i == defaultIndex);
-        return;
-    }
+        createScrobblingPage();
+        createTagsPage();
+        createExclusionsPage();
 
-    // If multiple ON -> keep the first one we saw, clear the rest.
-    if (onCount > 1)
-    {
-        for (std::size_t i = 0; i < n; ++i)
-            advSetCheckboxState(ids[i], i == firstOn);
-    }
-}
+        applyDialogFont();
 
-static void enforceOneOf3(const GUID& g0, const GUID& g1, const GUID& g2, std::size_t defaultIndex)
-{
-    const GUID ids[3] = {g0, g1, g2};
-    enforceOneOfN(ids, 3, defaultIndex);
-}
+        TabCtrl_SetCurSel(tabs_, TabScrobbling);
+        showSelectedTab();
 
-static void ensureRadioDefaultAdv()
-{
-    // Default = Basic (index 1)
-    enforceOneOf3(GUID_LASTFM_PREFS_RADIO_0, GUID_LASTFM_PREFS_RADIO_1, GUID_LASTFM_PREFS_RADIO_2, 1);
-}
+        RECT rc{};
+        ::GetClientRect(m_hWnd, &rc);
+        layout(rc.right - rc.left, rc.bottom - rc.top);
 
-static int getConsoleRadioChoice()
-{
-    ensureRadioDefaultAdv();
+        loadSettings();
+        refreshAuthStatus();
+        ::SetTimer(m_hWnd, 1, 1000, nullptr);
 
-    if (advGetCheckboxState(GUID_LASTFM_PREFS_RADIO_2))
-        return 2;
-    if (advGetCheckboxState(GUID_LASTFM_PREFS_RADIO_1))
-        return 1;
-    return 0;
-}
-
-static void ensureDynamicRadioDefaultAdv()
-{
-    // Default = NP & Scrobbling (index 2)
-    enforceOneOf3(GUID_LASTFM_PREFS_DYNAMIC_RADIO_0, GUID_LASTFM_PREFS_DYNAMIC_RADIO_1,
-                  GUID_LASTFM_PREFS_DYNAMIC_RADIO_2, 2);
-}
-
-static int getDynamicSourcesMode()
-{
-    ensureDynamicRadioDefaultAdv();
-
-    if (advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_1))
-    {
-        static std::atomic<bool> logged{false};
-        if (!logged.exchange(true))
-            LFM_DEBUG("Dynamic sources: overridden to 'No dynamic sources' because Only-from-library is enabled.");
         return 0;
     }
 
-    if (advGetCheckboxState(GUID_LASTFM_PREFS_DYNAMIC_RADIO_2))
-        return 2;
-    if (advGetCheckboxState(GUID_LASTFM_PREFS_DYNAMIC_RADIO_1))
-        return 1;
-    return 0;
-}
+    LRESULT OnDestroy(UINT, WPARAM, LPARAM, BOOL&)
+    {
+        ::KillTimer(m_hWnd, 1);
+        if (boldFont_)
+            ::DeleteObject(boldFont_);
+        return 0;
+    }
 
-static std::string advGetStringState(const GUID& g)
+    LRESULT OnShowWindow(UINT, WPARAM wp, LPARAM, BOOL& handled)
+    {
+        if (wp && tabs_)
+        {
+            showSelectedTab();
+            ::RedrawWindow(m_hWnd, nullptr, nullptr,
+                           RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW);
+        }
+        handled = FALSE;
+        return 0;
+    }
+
+    LRESULT OnSize(UINT, WPARAM, LPARAM lp, BOOL&)
+    {
+        layout(LOWORD(lp), HIWORD(lp));
+        return 0;
+    }
+
+    void layout(int width, int height)
+    {
+        ::MoveWindow(tabs_, 0, 0, width, height, TRUE);
+
+        RECT rc{0, 0, width, height};
+        TabCtrl_AdjustRect(tabs_, FALSE, &rc);
+        for (HWND page : pages_)
+            ::MoveWindow(page, rc.left + 8, rc.top + 8, rc.right - rc.left - 16, rc.bottom - rc.top - 16, TRUE);
+
+        layoutPages(rc.right - rc.left - 16);
+    }
+
+    LRESULT OnNotify(UINT, WPARAM, LPARAM lp, BOOL&)
+    {
+        const auto* nm = reinterpret_cast<NMHDR*>(lp);
+        if (nm && nm->idFrom == IdTabs && nm->code == TCN_SELCHANGE)
+            showSelectedTab();
+        return 0;
+    }
+
+    LRESULT OnCommand(UINT, WPARAM wp, LPARAM lp, BOOL&)
+    {
+        if (loading_ || lp == 0)
+            return 0;
+
+        const int id = LOWORD(wp);
+        const int code = HIWORD(wp);
+        if (code != BN_CLICKED && code != CBN_SELCHANGE && code != EN_CHANGE)
+            return 0;
+
+        if (id == IdOnlyLibrary)
+            refreshDynamicEnabledState();
+        else if (templateIndex(id) >= 0)
+            updateTemplateExpressionFromControl(id);
+        else if (id == IdExcludeTf)
+            refreshTemplateCheckboxes();
+
+        notifyChanged();
+        return 0;
+    }
+
+    LRESULT OnTimer(UINT, WPARAM wp, LPARAM, BOOL&)
+    {
+        if (wp == 1)
+            refreshAuthStatus();
+        return 0;
+    }
+
+    static LRESULT CALLBACK pageSubclassProc(HWND wnd, UINT message, WPARAM wp, LPARAM lp, UINT_PTR subclassId,
+                                             DWORD_PTR ownerData)
+    {
+        if (message == WM_COMMAND || message == WM_NOTIFY)
+            return ::SendMessageW(reinterpret_cast<HWND>(ownerData), message, wp, lp);
+
+        if (message == WM_NCDESTROY)
+            ::RemoveWindowSubclass(wnd, pageSubclassProc, subclassId);
+
+        return ::DefSubclassProc(wnd, message, wp, lp);
+    }
+
+    static BOOL CALLBACK setChildFont(HWND wnd, LPARAM fontData)
+    {
+        ::SendMessageW(wnd, WM_SETFONT, static_cast<WPARAM>(fontData), TRUE);
+        return TRUE;
+    }
+
+    void applyDialogFont()
+    {
+        HWND host = ::GetParent(m_hWnd);
+        HFONT font = reinterpret_cast<HFONT>(::SendMessageW(host, WM_GETFONT, 0, 0));
+        if (!font)
+            font = reinterpret_cast<HFONT>(::GetStockObject(DEFAULT_GUI_FONT));
+
+        ::EnumChildWindows(m_hWnd, setChildFont, reinterpret_cast<LPARAM>(font));
+
+        LOGFONTW logFont{};
+        if (::GetObjectW(font, sizeof(logFont), &logFont))
+        {
+            logFont.lfWeight = FW_BOLD;
+            boldFont_ = ::CreateFontIndirectW(&logFont);
+            for (HWND header : headers_)
+                ::SendMessageW(header, WM_SETFONT, reinterpret_cast<WPARAM>(boldFont_), TRUE);
+        }
+    }
+
+    HWND addDarkControl(HWND wnd)
+    {
+        if (wnd)
+            dark_.AddCtrlAuto(wnd);
+        return wnd;
+    }
+
+    HWND addLabel(HWND parent, const wchar_t* text, int x, int y, int width = 150)
+    {
+        return addDarkControl(::CreateWindowExW(0, L"STATIC", text, WS_CHILD | WS_VISIBLE | SS_RIGHT, x, y + 3, width,
+                                                20, parent, nullptr, core_api::get_my_instance(), nullptr));
+    }
+
+    HWND addHeader(HWND parent, const wchar_t* text, int x, int y)
+    {
+        HWND header = addDarkControl(::CreateWindowExW(0, L"STATIC", text, WS_CHILD | WS_VISIBLE | SS_LEFT, x, y, 360,
+                                                       20, parent, nullptr, core_api::get_my_instance(), nullptr));
+        headers_.push_back(header);
+        return header;
+    }
+
+    HWND addEdit(HWND parent, int id, int x, int y)
+    {
+        return addDarkControl(::CreateWindowExW(
+            WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, x, y, 360, 23, parent,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr));
+    }
+
+    HWND addCheckbox(HWND parent, int id, const wchar_t* text, int x, int y, int width = 360)
+    {
+        return addDarkControl(::CreateWindowExW(
+            0, L"BUTTON", text, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, x, y, width, 22, parent,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr));
+    }
+
+    HWND addCombo(HWND parent, int id, int x, int y, std::initializer_list<const wchar_t*> items)
+    {
+        HWND combo = addDarkControl(::CreateWindowExW(
+            0, WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, x, y, 300, 160,
+            parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr));
+        for (const wchar_t* item : items)
+            ::SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item));
+        return combo;
+    }
+
+    template <std::size_t N> int addTextFields(HWND page, const TextFieldSetting (&fields)[N], int y)
+    {
+        for (const auto& field : fields)
+        {
+            addLabel(page, field.label, 10, y);
+            edits_[field.id] = addEdit(page, field.id, 170, y);
+            y += 30;
+        }
+        return y;
+    }
+
+    void insertTab(int index, const wchar_t* label)
+    {
+        TCITEMW item{};
+        item.mask = TCIF_TEXT;
+        item.pszText = const_cast<wchar_t*>(label);
+        TabCtrl_InsertItem(tabs_, index, &item);
+    }
+
+    void createScrobblingPage()
+    {
+        HWND page = pages_[TabScrobbling];
+        addHeader(page, L"Submission Behavior", 10, 10);
+        disableNowPlaying_ = addCheckbox(page, IdDisableNowPlaying, L"Disable Now Playing notifications", 170, 40);
+        onlyLibrary_ = addCheckbox(page, IdOnlyLibrary, L"Only scrobble from media library", 170, 68);
+
+        addHeader(page, L"Dynamic Sources", 10, 112);
+        dynamicLabel_ = addLabel(page, L"Use:", 10, 144);
+        dynamicCombo_ = addCombo(page, IdDynamicCombo, 170, 140,
+                                 {L"No dynamic sources", L"Only Now Playing", L"Now Playing and scrobbling"});
+
+        addHeader(page, L"Console", 10, 190);
+        addLabel(page, L"Info level:", 10, 222);
+        consoleCombo_ = addCombo(page, IdConsoleCombo, 170, 218, {L"None", L"Basic", L"Debug"});
+
+        addHeader(page, L"Authentication", 10, 264);
+        addLabel(page, L"Status:", 10, 296);
+        authStatus_ = addDarkControl(::CreateWindowExW(
+            0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT, 170, 299, 420, 40, page,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(IdAuthStatus)), core_api::get_my_instance(), nullptr));
+    }
+
+    void createTagsPage()
+    {
+        HWND page = pages_[TabTags];
+        addHeader(page, L"Tag Formatting", 10, 10);
+        const int y = addTextFields(page, kTagFields, 40);
+        treatVariousArtists_ = addCheckbox(page, IdTreatVariousArtists,
+                                           L"Treat \"Various Artists\" as empty for album artist", 170, y + 8, 420);
+    }
+
+    void createExclusionsPage()
+    {
+        HWND page = pages_[TabExclusions];
+        addHeader(page, L"Text or Regex", 10, 10);
+        int y = addTextFields(page, kExclusionFields, 40);
+
+        addHeader(page, L"TF Templates", 10, y + 8);
+        y += 38;
+        for (const auto& t : kTemplates)
+        {
+            templateCheckboxes_[templateIndex(t.checkboxId)] = addCheckbox(page, t.checkboxId, t.label, 10, y, 150);
+            edits_[t.editId] = addEdit(page, t.editId, 170, y);
+            y += 30;
+        }
+    }
+
+    void layoutPages(int width)
+    {
+        const int editWidth = std::max(240, width - 360);
+        for (const auto& item : edits_)
+            if (item.second)
+            {
+                RECT rc{};
+                ::GetWindowRect(item.second, &rc);
+                ::MapWindowPoints(nullptr, ::GetParent(item.second), reinterpret_cast<POINT*>(&rc), 2);
+                const int fieldWidth = isExclusionField(item.first) ? editWidth * 6 / 5 : editWidth;
+                ::MoveWindow(item.second, rc.left, rc.top, fieldWidth, rc.bottom - rc.top, TRUE);
+            }
+
+        if (authStatus_)
+            ::MoveWindow(authStatus_, 170, 299, std::max(240, width - 210), 40, TRUE);
+    }
+
+    void showSelectedTab()
+    {
+        const int selected = TabCtrl_GetCurSel(tabs_);
+        for (int i = 0; i < TabCount; ++i)
+            if (i != selected)
+                ::ShowWindow(pages_[i], SW_HIDE);
+
+        if (selected >= 0 && selected < TabCount)
+        {
+            ::SetWindowPos(pages_[selected], HWND_TOP, 0, 0, 0, 0,
+                           SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            ::RedrawWindow(pages_[selected], nullptr, nullptr,
+                           RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+        }
+    }
+
+    void loadSettings()
+    {
+        loading_ = true;
+        setComboSelection(consoleCombo_, lastfm::settings::consoleLevel());
+        setChecked(disableNowPlaying_, lastfm::settings::disableNowPlaying());
+        setChecked(onlyLibrary_, lastfm::settings::onlyScrobbleFromMediaLibrary());
+        setComboSelection(dynamicCombo_, lastfm::settings::configuredDynamicSourcesMode());
+        setChecked(treatVariousArtists_, lastfm::settings::treatVariousArtistsAsEmpty());
+
+        forEachTextSetting([this](int id, const auto& setting) { setText(id, setting.getValue()); });
+
+        refreshTemplateValueCache();
+        refreshTemplateCheckboxes();
+        refreshDynamicEnabledState();
+        loading_ = false;
+    }
+
+    bool hasChanged() const
+    {
+        bool changed = comboSelection(consoleCombo_) != lastfm::settings::consoleLevel() ||
+                       checked(disableNowPlaying_) != lastfm::settings::disableNowPlaying() ||
+                       checked(onlyLibrary_) != lastfm::settings::onlyScrobbleFromMediaLibrary() ||
+                       comboSelection(dynamicCombo_) != lastfm::settings::configuredDynamicSourcesMode() ||
+                       checked(treatVariousArtists_) != lastfm::settings::treatVariousArtistsAsEmpty();
+        forEachTextSetting([this, &changed](int id, const auto& setting)
+                           { changed = changed || getText(id) != setting.getValue(); });
+        return changed;
+    }
+
+    void refreshAuthStatus()
+    {
+        const LastfmAuthState state = lastfmGetAuthState();
+        const std::string text = state.isAuthenticated
+                                     ? "Authenticated as " + state.username + "."
+                                     : "User not authenticated, please authenticate\nfrom the Playback menu.";
+        setWindowUtf8(authStatus_, text);
+    }
+
+    void refreshDynamicEnabledState()
+    {
+        const BOOL enabled = checked(onlyLibrary_) ? FALSE : TRUE;
+        ::EnableWindow(dynamicLabel_, enabled);
+        ::EnableWindow(dynamicCombo_, enabled);
+    }
+
+    void refreshTemplateValueCache()
+    {
+        for (std::size_t i = 0; i < std::size(kTemplates); ++i)
+            templateValues_[i] = getText(kTemplates[i].editId);
+    }
+
+    void refreshTemplateCheckboxes()
+    {
+        const std::string tf = getText(IdExcludeTf);
+        for (std::size_t i = 0; i < std::size(kTemplates); ++i)
+        {
+            const auto& t = kTemplates[i];
+            setChecked(templateCheckboxes_[i],
+                       lastfm::preferences::hasTemplateExpression(tf, templateExpression(t, getText(t.editId))));
+        }
+    }
+
+    void updateTemplateExpressionFromControl(int id)
+    {
+        const int index = templateIndex(id);
+        if (index < 0)
+            return;
+
+        const auto& t = kTemplates[index];
+        const std::string oldExpr = templateExpression(t, templateValues_[index]);
+        const std::string newValue = getText(t.editId);
+        const std::string newExpr = templateExpression(t, newValue);
+
+        std::string tf = getText(IdExcludeTf);
+        tf = lastfm::preferences::removeTemplateExpression(tf, oldExpr);
+
+        bool enabled = checked(templateCheckboxes_[index]);
+        if (enabled && !newExpr.empty())
+            tf = lastfm::preferences::appendTemplateExpression(tf, newExpr);
+        else
+            enabled = false;
+
+        templateValues_[index] = newValue;
+        setText(IdExcludeTf, tf);
+        setChecked(templateCheckboxes_[index], enabled);
+    }
+
+    int templateIndex(int id) const
+    {
+        for (std::size_t i = 0; i < std::size(kTemplates); ++i)
+            if (kTemplates[i].checkboxId == id || kTemplates[i].editId == id)
+                return static_cast<int>(i);
+        return -1;
+    }
+
+    bool isExclusionField(int id) const
+    {
+        for (const auto& field : kExclusionFields)
+            if (field.id == id)
+                return true;
+        for (const auto& field : kTemplates)
+            if (field.editId == id)
+                return true;
+        return false;
+    }
+
+    std::string getText(int id) const
+    {
+        auto it = edits_.find(id);
+        return it == edits_.end() ? std::string{} : utf8FromWindow(it->second);
+    }
+
+    void setText(int id, const std::string& value)
+    {
+        auto it = edits_.find(id);
+        if (it != edits_.end())
+            setWindowUtf8(it->second, value);
+    }
+
+    void notifyChanged()
+    {
+        callback_->on_state_changed();
+    }
+
+    preferences_page_callback::ptr callback_;
+    bool loading_ = false;
+    HWND tabs_ = nullptr;
+    std::array<HWND, TabCount> pages_{};
+    std::map<int, HWND> edits_;
+    std::vector<HWND> headers_;
+    std::array<HWND, std::size(kTemplates)> templateCheckboxes_{};
+    std::array<std::string, std::size(kTemplates)> templateValues_{};
+    HWND consoleCombo_ = nullptr;
+    HWND authStatus_ = nullptr;
+    HWND disableNowPlaying_ = nullptr;
+    HWND onlyLibrary_ = nullptr;
+    HWND dynamicLabel_ = nullptr;
+    HWND dynamicCombo_ = nullptr;
+    HWND treatVariousArtists_ = nullptr;
+    HFONT boldFont_ = nullptr;
+    fb2k::CCoreDarkModeHooks dark_;
+};
+
+class lastfm_preferences_page : public preferences_page_impl<LastfmPreferencesPage>
 {
-    service_ptr_t<advconfig_entry_string> e;
-    if (!advconfig_entry::g_find_t(e, g))
-        return {};
+  public:
+    const char* get_name() override
+    {
+        return "Foo Scrobbler";
+    }
+    GUID get_guid() override
+    {
+        return GUID_LASTFM_PREFERENCES_PAGE;
+    }
+    GUID get_parent_guid() override
+    {
+        return preferences_page::guid_tools;
+    }
+    double get_sort_priority() override
+    {
+        return -50.0;
+    }
+};
 
-    pfc::string8 v;
-    e->get_state(v);
-    return std::string(v.c_str());
-}
+preferences_page_factory_t<lastfm_preferences_page> g_lastfmPreferencesPageFactory;
 } // namespace
-
-void lastfmSyncLogLevelFromPrefs()
-{
-    const int choice = getConsoleRadioChoice();
-
-    const int desired = (choice == 0)   ? static_cast<int>(LfmLogLevel::OFF)
-                        : (choice == 1) ? static_cast<int>(LfmLogLevel::INFO)
-                                        : static_cast<int>(LfmLogLevel::DEBUG_LOG);
-
-    lfmLogLevel.store(desired);
-}
-
-void lastfmRegisterPrefsPane()
-{
-    // Force sync once at startup, so atomic matches prefs immediately.
-    lastfmSyncLogLevelFromPrefs();
-
-    pfc::string_formatter f;
-    f << "PrefsPane: Advanced prefs registered. consoleChoice=" << getConsoleRadioChoice()
-      << " logLevel=" << lfmLogLevel.load();
-    LFM_DEBUG(f.c_str());
-}
-
-bool lastfmOnlyScrobbleFromMediaLibrary()
-{
-    return advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_1);
-}
-
-int lastfmDynamicSourcesMode()
-{
-    return getDynamicSourcesMode();
-}
-
-bool lastfmDisableNowPlaying()
-{
-    return advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_0);
-}
-
-std::string lastfmExcludedArtistsPatternList()
-{
-    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_ARTISTS);
-}
-
-std::string lastfmExcludedTitlesPatternList()
-{
-    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_TITLES);
-}
-
-std::string lastfmExcludedAlbumsPatternList()
-{
-    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_ALBUMS);
-}
-
-std::string lastfmExcludedTfExpression()
-{
-    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_TF);
-}
-
-std::string lastfmArtistTf()
-{
-    return advGetStringState(GUID_LASTFM_PREFS_TF_ARTIST);
-}
-
-std::string lastfmAlbumArtistTf()
-{
-    return advGetStringState(GUID_LASTFM_PREFS_TF_ALBUM_ARTIST);
-}
-
-std::string lastfmTitleTf()
-{
-    return advGetStringState(GUID_LASTFM_PREFS_TF_TITLE);
-}
-
-std::string lastfmAlbumTf()
-{
-    return advGetStringState(GUID_LASTFM_PREFS_TF_ALBUM);
-}
-
-bool lastfmTagTreatVariousArtistsAsEmpty()
-{
-    return advGetCheckboxState(GUID_LASTFM_TAG_CHECKBOX_VA_AS_EMPTY);
-}

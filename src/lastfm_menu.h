@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include "sdk_bootstrap.h"
 #include <foobar2000/SDK/foobar2000.h>
 
 class LastfmMenu : public mainmenu_commands

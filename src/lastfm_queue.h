@@ -7,9 +7,8 @@
 
 #pragma once
 
-#include "sdk_bootstrap.h"
-
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
@@ -18,7 +17,6 @@
 #include <string>
 #include <vector>
 
-#include "lastfm_auth_state.h"
 #include "lastfm_client.h"
 
 class LastfmQueue
@@ -91,6 +89,8 @@ class LastfmQueue
     static std::string escapeField(const std::string& in);
     static std::string unescapeField(const std::string& in);
     static std::string serializeScrobble(const QueuedScrobble& q);
+    static RetryUpdate makeFailureRetryUpdate(const QueuedScrobble& q, LastfmScrobbleResult result,
+                                              std::time_t nowSchedule);
 
     static DispatchOutcome
     dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
