@@ -15,9 +15,7 @@
 #include "lastfm_util.h"
 #include "debug.h"
 
-#include <algorithm>
 #include <atomic>
-#include <cctype>
 #include <ctime>
 #include <string>
 #include <cstring>
@@ -26,9 +24,51 @@ namespace
 {
 static bool isVariousArtistsValue(const std::string& value)
 {
-    std::string s = value;
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return (char)std::tolower(c); });
-    return s == "various artists";
+    std::string s;
+    bool lastWasSpace = false;
+
+    const char* p = value.c_str();
+    std::size_t remaining = value.size();
+
+    while (remaining > 0)
+    {
+        unsigned c = 0;
+        const std::size_t used = pfc::utf8_decode_char(p, c, remaining);
+        if (used == 0)
+            return false;
+
+        if (c >= 'A' && c <= 'Z')
+            c = c - 'A' + 'a';
+
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
+        {
+            s.push_back((char)c);
+            lastWasSpace = false;
+        }
+        else if (c == '.' || c == '/')
+        {
+        }
+        else if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0x00A0 || c == 0x3000 ||
+                 (c >= 0x2000 && c <= 0x200A))
+        {
+            if (!s.empty() && !lastWasSpace)
+            {
+                s.push_back(' ');
+                lastWasSpace = true;
+            }
+        }
+        else
+            return false;
+
+        p += used;
+        remaining -= used;
+    }
+
+    if (!s.empty() && s.back() == ' ')
+        s.pop_back();
+
+    return s == "various artists" || s == "various artist" || s == "variousartists" || s == "various" || s == "va" ||
+           s == "v a";
 }
 
 static std::string evalTitleFormat(const metadb_handle_ptr& track, const service_ptr_t<titleformat_object>& script)
@@ -49,10 +89,7 @@ static void applyVariousArtistsRule(std::string& albumArtist)
     if (albumArtist.empty())
         return;
 
-    std::string s = albumArtist;
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return (char)std::tolower(c); });
-
-    if (s == "various artists")
+    if (isVariousArtistsValue(albumArtist))
         albumArtist.clear();
 }
 
@@ -105,7 +142,7 @@ static bool looksLikeStationTitle(const std::string& title)
     if (title.size() > 80)
         return true;
 
-    int alpha = 0;
+    int content = 0;
     int spaces = 0;
 
     bool hasBracket = false;
@@ -114,24 +151,39 @@ static bool looksLikeStationTitle(const std::string& title)
     std::string norm;
     norm.reserve(title.size());
 
-    for (unsigned char c : title)
+    const char* p = title.c_str();
+    std::size_t remaining = title.size();
+    while (remaining > 0)
     {
-        const char lc = (char)std::tolower(c);
-        norm.push_back(lc);
+        unsigned c = 0;
+        const std::size_t used = pfc::utf8_decode_char(p, c, remaining);
+        if (used == 0)
+            return true;
 
-        if (std::isalpha(c))
-            ++alpha;
-        else if (std::isspace(c))
+        if (c >= 'A' && c <= 'Z')
+            norm.push_back((char)(c - 'A' + 'a'));
+        else if (c < 0x80)
+            norm.push_back((char)c);
+        else
+            norm.push_back(' ');
+
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0x00A0 || c == 0x3000 ||
+            (c >= 0x2000 && c <= 0x200A))
             ++spaces;
+        else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c > 0x7F)
+            ++content;
 
         if (c == '[' || c == ']')
             hasBracket = true;
+
+        p += used;
+        remaining -= used;
     }
 
     if (norm.find("http") != std::string::npos || norm.find("www.") != std::string::npos)
         hasUrl = true;
 
-    if (alpha < 3)
+    if (content < 3)
         return true;
 
     if (hasBracket)
@@ -461,8 +513,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 
     if (lastfm::settings::onlyScrobbleFromMediaLibrary() && !isTrackInMediaLibrary(track))
     {
-        LFM_DEBUG("Track skipped: not in Media Library.");
-        resetState();
+        LFM_DEBUG("Track deferred: not in Media Library.");
         return;
     }
 

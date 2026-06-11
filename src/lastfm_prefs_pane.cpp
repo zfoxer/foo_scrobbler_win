@@ -8,7 +8,6 @@
 #include "stdafx.h"
 
 #include "debug.h"
-#include "lastfm_prefs_helpers.h"
 #include "lastfm_settings.h"
 #include "lastfm_state.h"
 
@@ -17,6 +16,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <initializer_list>
 #include <iterator>
 #include <map>
@@ -27,6 +27,10 @@ namespace
 {
 static const GUID GUID_LASTFM_PREFERENCES_PAGE = {
     0x00b3d05b, 0x178d, 0x44bd, {0x85, 0x00, 0x48, 0x81, 0x9c, 0xba, 0x1c, 0xd6}};
+
+constexpr int kEditRightMargin = 24;
+constexpr int kTemplateCheckboxWidth = 150;
+constexpr int kTemplateControlGap = 8;
 
 enum
 {
@@ -157,9 +161,111 @@ void setComboSelection(HWND wnd, int value)
     ::SendMessageW(wnd, CB_SETCURSEL, value, 0);
 }
 
+std::string trimCopy(const std::string& in)
+{
+    std::size_t b = 0;
+    while (b < in.size() && std::isspace(static_cast<unsigned char>(in[b])))
+        ++b;
+
+    std::size_t e = in.size();
+    while (e > b && std::isspace(static_cast<unsigned char>(in[e - 1])))
+        --e;
+
+    return (e > b) ? in.substr(b, e - b) : std::string{};
+}
+
+std::string lowerCopy(const std::string& in)
+{
+    std::string out;
+    out.reserve(in.size());
+    for (unsigned char c : in)
+        out.push_back(static_cast<char>(std::tolower(c)));
+    return out;
+}
+
+std::string titleFormatLiteral(const std::string& value)
+{
+    std::string out = "\x27";
+    for (char c : value)
+    {
+        if (static_cast<unsigned char>(c) == 0x27)
+            out += "\x27\x27";
+        else
+            out.push_back(c);
+    }
+    out += "\x27";
+    return out;
+}
+
+std::string makeTemplateExpression(const char* field, bool contains, const std::string& rawValues)
+{
+    std::vector<std::string> conditions;
+    std::size_t start = 0;
+    while (start <= rawValues.size())
+    {
+        std::size_t end = rawValues.find(0x3B, start);
+        if (end == std::string::npos)
+            end = rawValues.size();
+
+        const std::string value = trimCopy(rawValues.substr(start, end - start));
+        if (!value.empty())
+        {
+            conditions.push_back(contains ? "$strstr($lower(" + std::string(field) + ")," +
+                                                titleFormatLiteral(lowerCopy(value)) + ")"
+                                          : "$stricmp(" + std::string(field) + "," + titleFormatLiteral(value) + ")");
+        }
+
+        start = end + 1;
+    }
+
+    if (conditions.empty())
+        return {};
+
+    std::string predicate = conditions.front();
+    if (conditions.size() > 1)
+    {
+        predicate = "$or(";
+        for (std::size_t i = 0; i < conditions.size(); ++i)
+            predicate += (i ? "," : "") + conditions[i];
+        predicate += ")";
+    }
+
+    return "$if(" + predicate + ",1,)";
+}
+
+std::string removeTemplateExpression(std::string text, const std::string& expr)
+{
+    if (expr.empty())
+        return text;
+
+    for (std::size_t pos = text.find(expr); pos != std::string::npos; pos = text.find(expr, pos))
+    {
+        text.erase(pos, expr.size());
+        if (pos < text.size() && static_cast<unsigned char>(text[pos]) == 0x20)
+            text.erase(pos, 1);
+        else if (pos > 0 && static_cast<unsigned char>(text[pos - 1]) == 0x20)
+            text.erase(pos - 1, 1);
+    }
+    return trimCopy(text);
+}
+
+bool hasTemplateExpression(const std::string& text, const std::string& expr)
+{
+    return !expr.empty() && text.find(expr) != std::string::npos;
+}
+
+std::string appendTemplateExpression(std::string text, const std::string& expr)
+{
+    if (expr.empty() || hasTemplateExpression(text, expr))
+        return text;
+    text = trimCopy(text);
+    text += text.empty() ? expr : " " + expr;
+    return text;
+}
+
 std::string templateExpression(const TemplateSetting& t, const std::string& value)
 {
-    return lastfm::preferences::makeTemplateExpression(t.field, t.contains, value);
+    return makeTemplateExpression(t.field, t.contains, value);
 }
 
 class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>, public preferences_page_instance
@@ -462,7 +568,7 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
                                  {L"No dynamic sources", L"Only Now Playing", L"Now Playing and scrobbling"});
 
         addHeader(page, L"Console", 10, 190);
-        addLabel(page, L"Info level:", 10, 222);
+        addLabel(page, L"Log level:", 10, 222);
         consoleCombo_ = addCombo(page, IdConsoleCombo, 170, 218, {L"None", L"Basic", L"Debug"});
 
         addHeader(page, L"Authentication", 10, 264);
@@ -491,22 +597,23 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
         y += 38;
         for (const auto& t : kTemplates)
         {
-            templateCheckboxes_[templateIndex(t.checkboxId)] = addCheckbox(page, t.checkboxId, t.label, 10, y, 150);
-            edits_[t.editId] = addEdit(page, t.editId, 170, y);
+            templateCheckboxes_[templateIndex(t.checkboxId)] =
+                addCheckbox(page, t.checkboxId, t.label, 170, y, kTemplateCheckboxWidth);
+            edits_[t.editId] = addEdit(page, t.editId, 170 + kTemplateCheckboxWidth + kTemplateControlGap, y);
             y += 30;
         }
     }
 
     void layoutPages(int width)
     {
-        const int editWidth = std::max(240, width - 360);
         for (const auto& item : edits_)
             if (item.second)
             {
                 RECT rc{};
                 ::GetWindowRect(item.second, &rc);
                 ::MapWindowPoints(nullptr, ::GetParent(item.second), reinterpret_cast<POINT*>(&rc), 2);
-                const int fieldWidth = isExclusionField(item.first) ? editWidth * 6 / 5 : editWidth;
+
+                const int fieldWidth = std::max(1, width - static_cast<int>(rc.left) - kEditRightMargin);
                 ::MoveWindow(item.second, rc.left, rc.top, fieldWidth, rc.bottom - rc.top, TRUE);
             }
 
@@ -587,8 +694,7 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
         for (std::size_t i = 0; i < std::size(kTemplates); ++i)
         {
             const auto& t = kTemplates[i];
-            setChecked(templateCheckboxes_[i],
-                       lastfm::preferences::hasTemplateExpression(tf, templateExpression(t, getText(t.editId))));
+            setChecked(templateCheckboxes_[i], hasTemplateExpression(tf, templateExpression(t, getText(t.editId))));
         }
     }
 
@@ -604,11 +710,11 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
         const std::string newExpr = templateExpression(t, newValue);
 
         std::string tf = getText(IdExcludeTf);
-        tf = lastfm::preferences::removeTemplateExpression(tf, oldExpr);
+        tf = removeTemplateExpression(tf, oldExpr);
 
         bool enabled = checked(templateCheckboxes_[index]);
         if (enabled && !newExpr.empty())
-            tf = lastfm::preferences::appendTemplateExpression(tf, newExpr);
+            tf = appendTemplateExpression(tf, newExpr);
         else
             enabled = false;
 
@@ -623,17 +729,6 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
             if (kTemplates[i].checkboxId == id || kTemplates[i].editId == id)
                 return static_cast<int>(i);
         return -1;
-    }
-
-    bool isExclusionField(int id) const
-    {
-        for (const auto& field : kExclusionFields)
-            if (field.id == id)
-                return true;
-        for (const auto& field : kTemplates)
-            if (field.editId == id)
-                return true;
-        return false;
     }
 
     std::string getText(int id) const
@@ -687,10 +782,6 @@ class lastfm_preferences_page : public preferences_page_impl<LastfmPreferencesPa
     GUID get_parent_guid() override
     {
         return preferences_page::guid_tools;
-    }
-    double get_sort_priority() override
-    {
-        return -50.0;
     }
 };
 

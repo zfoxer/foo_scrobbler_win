@@ -11,8 +11,11 @@
 #include "debug.h"
 #include "lastfm_settings.h"
 
+#include <pfc/SmartStrStr.h>
+
 #include <atomic>
 #include <cctype>
+#include <cstring>
 #include <mutex>
 #include <regex>
 #include <string>
@@ -34,7 +37,7 @@ class TextOrRegexFilter
         if (raw_.empty())
             return false;
 
-        const std::string vLower = lowerCopy(value);
+        const std::string vLower = searchKey(value);
 
         for (const auto& needle : substrLower_)
         {
@@ -110,12 +113,13 @@ class TextOrRegexFilter
         return (e > b) ? in.substr(b, e - b) : std::string{};
     }
 
-    static std::string lowerCopy(const std::string& in)
+    static std::string searchKey(const std::string& in)
     {
+        pfc::string8 folded = SmartStrStr::global().transformStr(in.c_str());
         std::string out;
-        out.reserve(in.size());
-        for (unsigned char c : in)
-            out.push_back((char)std::tolower(c));
+        out.reserve(strlen(folded.c_str()));
+        for (const unsigned char* p = reinterpret_cast<const unsigned char*>(folded.c_str()); *p; ++p)
+            out.push_back((*p >= 'A' && *p <= 'Z') ? (char)(*p + ('a' - 'A')) : (char)*p);
         return out;
     }
 
@@ -153,7 +157,7 @@ class TextOrRegexFilter
 
             if (!hasRegexMeta(entry))
             {
-                substrLower_.push_back(lowerCopy(entry));
+                substrLower_.push_back(searchKey(entry));
                 continue;
             }
 

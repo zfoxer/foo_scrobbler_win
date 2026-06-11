@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.5.1  
+**Release:** 1.5.2  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -75,6 +75,12 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.5.2    2026-06-12
+Extend validation for VA field values.
+Defer tracks not in the library instead of rejecting them immediately.
+Fix UTF-8 handling in station title heuristic.
+Make exclusion substring matching Unicode-aware.
+
 1.5.1    2026-06-06    
 Replace the Advanced settings area with a tabbed pane under Preferences → Tools → Foo Scrobbler.  
 Add four Title Formatting exclusion filter templates.  
