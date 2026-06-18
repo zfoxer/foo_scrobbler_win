@@ -31,6 +31,9 @@
 *.la
 *.a
 *.lib
+!sdk/foobar2000/shared/shared-Win32.lib
+!sdk/foobar2000/shared/shared-x64.lib
+!sdk/foobar2000/shared/shared-ARM64EC.lib
 
 # Executables
 *.exe
