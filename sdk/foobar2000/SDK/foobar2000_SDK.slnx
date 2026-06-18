@@ -1,9 +1,0 @@
-<Solution>
-  <Configurations>
-    <Platform Name="ARM64" />
-    <Platform Name="ARM64EC" />
-    <Platform Name="x64" />
-    <Platform Name="x86" />
-  </Configurations>
-  <Project Path="foobar2000_SDK.vcxproj" Id="e8091321-d79d-4575-86ef-064ea1a4a20d" />
-</Solution>

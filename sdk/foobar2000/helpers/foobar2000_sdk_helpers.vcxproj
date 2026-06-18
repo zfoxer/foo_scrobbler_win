@@ -267,6 +267,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -342,6 +343,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -586,7 +588,6 @@
     <ClInclude Include="readers_lite.h" />
     <ClInclude Include="reader_pretend_nonseekable.h" />
     <ClInclude Include="readWriteLock.h" />
-    <ClInclude Include="resource.h" />
     <ClInclude Include="rethrow.h" />
     <ClInclude Include="seekabilizer.h" />
     <ClInclude Include="StdAfx.h" />
@@ -606,9 +607,6 @@
     <ClInclude Include="window_placement_helper.h" />
     <ClInclude Include="winmm-types.h" />
     <ClInclude Include="writer_wav.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="foobar2000_sdk_helpers.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

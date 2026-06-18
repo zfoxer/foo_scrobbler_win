@@ -232,7 +232,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <PreprocessorDefinitions>NOMINMAX;_AMD64_;_ARM64EC_;%(ClCompile.PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;NDEBUG;_AMD64_;_ARM64EC_;%(ClCompile.PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/d2notypeopt /Gy %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
