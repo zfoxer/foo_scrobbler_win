@@ -10,7 +10,7 @@
 #include "lastfm_no.h"
 
 // Auto-generated at build time.
-#include "../generated/no.generated.h"
+#include "generated/no.generated.h"
 
 std::string __key()
 {
