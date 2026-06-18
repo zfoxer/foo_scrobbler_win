@@ -68,6 +68,8 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
   <img src="assets/prefs_win.png" alt="Foo Scrobbler Settings" width="800" />
 </p>
 
+If you prefer to compile the plugin yourself, see the [Compilation Guide](https://github.com/zfoxer/foo_scrobbler_win/wiki/Compilation).  
+
 
 ### Release notes
 
