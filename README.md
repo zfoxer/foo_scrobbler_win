@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.5.2  
+**Release:** 1.5.3  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -77,6 +77,11 @@ If you prefer to compile the plugin yourself, see the [Compilation Guide](https:
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.5.3    2026-06-21
+Defer filtered dynamic tracks like local files.
+Further separate dynamic and local tracker paths.  
+Move shared tracker helpers into utilities.
+
 1.5.2    2026-06-12
 Extend validation for VA field values.
 Defer tracks not in the library instead of rejecting them immediately.
