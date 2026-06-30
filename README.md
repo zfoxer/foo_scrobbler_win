@@ -8,23 +8,23 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.5.3  
+**Release:** 1.5.4  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
-A native Lastfm scrobbler component (foo_scrobbler_win) for foobar2000 on Windows. It submits “Now Playing” and scrobbles using the official Last.fm Scrobbling 2.0 API, applies strict playback qualification rules, and keeps a local queue when you’re offline. Once authenticated, it runs quietly in the background.
+A native and original Last.fm scrobbler component (foo_scrobbler_win) for foobar2000 on Windows. It submits “Now Playing” and scrobbles using the official Last.fm Scrobbling 2.0 API, applies strict playback qualification rules, and keeps a local queue when you’re offline. Once authenticated, it runs quietly in the background.
 
 
-**OS support:** Windows 10 (x86, x64) and Windows 11 (x64, arm64ec) for foobar2000 ≥ v2.24
+**OS support:** Windows 10 (x86, x64) and Windows 11 (x64, arm64ec) for foobar2000 v2.24+
 
 This is the GitHub site of the [Windows version](https://github.com/zfoxer/foo_scrobbler_win).  
 For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_mac).
 
 ### Quick start
 
-1. In foobar, go to **Preferences → Components**.
+1. In foobar2000, go to **Preferences → Components**.
 2. Install: **foo_scrobbler_win.fb2k-component**.
-3. [Authenticate](https://github.com/zfoxer/foo_scrobbler_win/wiki/LFM_Auth) once with your Lastfm account through the browse flow.  
+3. [Authenticate](https://github.com/zfoxer/foo_scrobbler_win/wiki/Authentication) once with your Lastfm account through the browse flow.  
 4. Play music. Scrobbling happens automatically.
 
 ### Where the UI lives
@@ -46,7 +46,7 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 
 ### Design goals and features
 
-- **Native component**: Runs inside foobar2000 on Windows, no wrappers.  
+- **Native component**: Runs inside foobar2000 on Windows, no wrappers, not a port.  
 - **Predictable rules**: Deterministic scrobble qualification.  
 - **Offline caching**: Stores failed scrobbles and submits them later.  
 - **Now Playing**: Handles Last.fm Now Playing updates correctly.  
@@ -63,12 +63,11 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 ### Documentation
 
 - Technical description: https://github.com/zfoxer/foo_scrobbler_mac/wiki  
+- If you prefer to compile the plugin yourself, see the [Compilation Guide](https://github.com/zfoxer/foo_scrobbler_win/wiki/Compilation).  
 
 <p align="left">
   <img src="assets/prefs_win.png" alt="Foo Scrobbler Settings" width="800" />
 </p>
-
-If you prefer to compile the plugin yourself, see the [Compilation Guide](https://github.com/zfoxer/foo_scrobbler_win/wiki/Compilation).  
 
 
 ### Release notes
@@ -77,6 +76,10 @@ If you prefer to compile the plugin yourself, see the [Compilation Guide](https:
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.5.4    2026-06-30
+Apply Title Formatting scripts to streams like local files.  
+Keep short CJK stream titles from being filtered as station noise.  
+
 1.5.3    2026-06-21
 Defer filtered dynamic tracks like local files.
 Further separate dynamic and local tracker paths.  

@@ -69,7 +69,7 @@ static cfg_int cfgLastfmDrainEnabled(GUID_CFG_LASTFM_DRAIN_ENABLED,
 );
 
 static cfg_int cfgLastfmDailyBudget(GUID_CFG_LASTFM_DAILY_BUDGET,
-                                    2600 // safe default
+                                    2600 // default to revise if needed
 );
 
 static cfg_int cfgLastfmScrobblesToday(GUID_CFG_LASTFM_SCROBBLES_TODAY, 0);
@@ -799,6 +799,9 @@ std::size_t LastfmQueue::getPendingScrobbleCount() const
 
 bool LastfmQueue::hasDueScrobble(std::time_t now)
 {
+    if (lastfmDailyBudgetExhausted({}))
+        return false;
+
     std::lock_guard<std::mutex> lock(mutex);
     ensureCacheLoadedLocked();
     if (isRateLimitedLocked(now))
