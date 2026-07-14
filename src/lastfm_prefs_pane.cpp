@@ -45,6 +45,7 @@ enum ControlId
     IdTabs = 1000,
     IdConsoleCombo,
     IdAuthStatus,
+    IdShowPlaybackMenu,
     IdDisableNowPlaying,
     IdOnlyLibrary,
     IdDynamicCombo,
@@ -308,6 +309,10 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
         lastfm::settings::setConsoleLevel(comboSelection(consoleCombo_));
         lastfmSetLogLevelFromConsoleChoice(lastfm::settings::consoleLevel());
 
+        // The checkbox is forced on and disabled while logged out; only persist a state the user could edit.
+        if (lastfmGetAuthState().isAuthenticated)
+            lastfm::settings::setShowPlaybackMenu(checked(showPlaybackMenu_));
+
         lastfm::settings::setDisableNowPlaying(checked(disableNowPlaying_));
         lastfm::settings::setOnlyScrobbleFromMediaLibrary(checked(onlyLibrary_));
         lastfm::settings::setDynamicSourcesMode(comboSelection(dynamicCombo_));
@@ -324,6 +329,7 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
         loading_ = true;
 
         setComboSelection(consoleCombo_, lastfm::settings::ConsoleBasic);
+        setChecked(showPlaybackMenu_, true);
         setChecked(disableNowPlaying_, false);
         setChecked(onlyLibrary_, false);
         setComboSelection(dynamicCombo_, lastfm::settings::DynamicSourcesNowPlayingAndScrobbling);
@@ -571,10 +577,13 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
         addLabel(page, L"Log level:", 10, 222);
         consoleCombo_ = addCombo(page, IdConsoleCombo, 170, 218, {L"None", L"Basic", L"Debug"});
 
-        addHeader(page, L"Authentication", 10, 264);
-        addLabel(page, L"Status:", 10, 296);
+        addHeader(page, L"Playback Menu", 10, 264);
+        showPlaybackMenu_ = addCheckbox(page, IdShowPlaybackMenu, L"Show Last.fm in the Playback menu", 170, 294);
+
+        addHeader(page, L"Authentication", 10, 338);
+        addLabel(page, L"Status:", 10, 370);
         authStatus_ = addDarkControl(::CreateWindowExW(
-            0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT, 170, 299, 420, 40, page,
+            0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT, 170, 373, 420, 40, page,
             reinterpret_cast<HMENU>(static_cast<INT_PTR>(IdAuthStatus)), core_api::get_my_instance(), nullptr));
     }
 
@@ -618,7 +627,7 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
             }
 
         if (authStatus_)
-            ::MoveWindow(authStatus_, 170, 299, std::max(240, width - 210), 40, TRUE);
+            ::MoveWindow(authStatus_, 170, 373, std::max(240, width - 210), 40, TRUE);
     }
 
     void showSelectedTab()
@@ -641,6 +650,7 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
     {
         loading_ = true;
         setComboSelection(consoleCombo_, lastfm::settings::consoleLevel());
+        setChecked(showPlaybackMenu_, lastfm::settings::showPlaybackMenu());
         setChecked(disableNowPlaying_, lastfm::settings::disableNowPlaying());
         setChecked(onlyLibrary_, lastfm::settings::onlyScrobbleFromMediaLibrary());
         setComboSelection(dynamicCombo_, lastfm::settings::configuredDynamicSourcesMode());
@@ -657,6 +667,8 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
     bool hasChanged() const
     {
         bool changed = comboSelection(consoleCombo_) != lastfm::settings::consoleLevel() ||
+                       (lastfmGetAuthState().isAuthenticated &&
+                        checked(showPlaybackMenu_) != lastfm::settings::showPlaybackMenu()) ||
                        checked(disableNowPlaying_) != lastfm::settings::disableNowPlaying() ||
                        checked(onlyLibrary_) != lastfm::settings::onlyScrobbleFromMediaLibrary() ||
                        comboSelection(dynamicCombo_) != lastfm::settings::configuredDynamicSourcesMode() ||
@@ -673,6 +685,16 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
                                      ? "Authenticated as " + state.username + "."
                                      : "User not authenticated, please authenticate\nfrom the Playback menu.";
         setWindowUtf8(authStatus_, text);
+
+        ::EnableWindow(showPlaybackMenu_, state.isAuthenticated ? TRUE : FALSE);
+        if (state.isAuthenticated != showPlaybackMenuAuthed_)
+        {
+            showPlaybackMenuAuthed_ = state.isAuthenticated;
+            // The menu is always visible while logged out, so show the box checked; restore the
+            // stored choice once authenticated again.
+            setChecked(showPlaybackMenu_, state.isAuthenticated ? lastfm::settings::showPlaybackMenu() : true);
+            notifyChanged();
+        }
     }
 
     void refreshDynamicEnabledState()
@@ -764,6 +786,8 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
     HWND dynamicLabel_ = nullptr;
     HWND dynamicCombo_ = nullptr;
     HWND treatVariousArtists_ = nullptr;
+    HWND showPlaybackMenu_ = nullptr;
+    bool showPlaybackMenuAuthed_ = true;
     HFONT boldFont_ = nullptr;
     fb2k::CCoreDarkModeHooks dark_;
 };

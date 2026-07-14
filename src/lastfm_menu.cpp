@@ -11,11 +11,14 @@
 #include "lastfm_core.h"
 #include "lastfm_track_info.h"
 #include "lastfm_state.h"
+#include "lastfm_settings.h"
 #include "lastfm_util.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
+#include <foobar2000/SDK/threadPool.h>
 
+#include <atomic>
 #include <string>
 #include <cstdlib>
 
@@ -35,11 +38,40 @@ static const GUID GUID_LASTFM_MENU_GROUP = {
 
 static const GUID GUID_LASTFM_SUSPEND = {0x7e72e458, 0x3ac9, 0x4942, {0xad, 0xc3, 0x69, 0xf1, 0x13, 0xdb, 0x38, 0xef}};
 
-static mainmenu_group_popup_factory lastfmMenuGroupFactory(GUID_LASTFM_MENU_GROUP, mainmenu_groups::playback,
-                                                           mainmenu_commands::sort_priority_dontcare, "Last.fm");
-
 namespace
 {
+
+static bool playbackMenuVisible()
+{
+    return lastfm::settings::showPlaybackMenu() || !lastfmIsAuthenticated();
+}
+
+class LastfmMenuGroup : public mainmenu_group_popup_v2
+{
+  public:
+    GUID get_guid() override
+    {
+        return GUID_LASTFM_MENU_GROUP;
+    }
+    GUID get_parent() override
+    {
+        return mainmenu_groups::playback;
+    }
+    t_uint32 get_sort_priority() override
+    {
+        return mainmenu_commands::sort_priority_dontcare;
+    }
+    void get_display_string(pfc::string_base& out) override
+    {
+        out = "Last.fm";
+    }
+    bool popup_condition() override
+    {
+        return playbackMenuVisible();
+    }
+};
+
+FB2K_SERVICE_FACTORY(LastfmMenuGroup);
 
 static void openBrowserUrl(const std::string& url)
 {
@@ -53,6 +85,82 @@ static void openBrowserUrl(const std::string& url)
 #else
     LFM_INFO("Open manually: (url omitted)");
 #endif
+}
+
+static std::atomic<bool> authRequestInFlight{false};
+
+static void runAuthenticateFlow()
+{
+    auto& authenticator = LastfmCore::instance().authenticator();
+
+    std::string url;
+
+    if (!authenticator.hasPendingToken())
+    {
+        const bool ok = authenticator.startAuth(url);
+        if (ok && !url.empty())
+        {
+            popup_message::g_show("A browser window will open to authorize this foobar2000 instance with Last.fm.\n"
+                                  "After allowing access, return here and click Authenticate again.",
+                                  "Foo Scrobbler");
+            openBrowserUrl(url);
+        }
+        else
+        {
+            authenticator.logout(); // Clear any half-started state
+            popup_message::g_show("Failed to start authentication. Please try again.", "Foo Scrobbler");
+        }
+    }
+    else
+    {
+        LastfmAuthState state;
+        if (authenticator.completeAuth(state))
+        {
+            auto& core = LastfmCore::instance();
+
+            // Prevent cross-account submission:
+            const pfc::string8 owner = lastfmGetQueueOwnerUsername();
+            const std::string newUser = state.username;
+
+            if (owner.is_empty())
+            {
+                // First time: claim ownership.
+                lastfmSetQueueOwnerUsername(newUser.c_str());
+            }
+            else if (std::string(owner.c_str()) != newUser)
+            {
+                // Different user: wipe pending scrobbles before draining.
+                core.scrobbler().clearQueue();
+                lastfmSetQueueOwnerUsername(newUser.c_str());
+            }
+            // else same user -> keep queue as-is
+
+            lastfmSetAuthState(state);
+            popup_message::g_show("Authentication complete.", "Foo Scrobbler");
+
+            core.scrobbler().onAuthenticationRecovered();
+            core.scrobbler().retryAsync();
+        }
+        else
+        {
+            // User likely closed browser or denied access. Reset and restart auth flow.
+            authenticator.logout();
+
+            std::string url2;
+            if (authenticator.startAuth(url2) && !url2.empty())
+            {
+                popup_message::g_show("Authorization was not completed. Let's try again.\n"
+                                      "A browser window will open to authorize this foobar2000 instance with Last.fm.\n"
+                                      "After allowing access, return here and click Authenticate again.",
+                                      "Foo Scrobbler");
+                openBrowserUrl(url2);
+            }
+            else
+            {
+                popup_message::g_show("Authentication failed. Please try again.", "Foo Scrobbler");
+            }
+        }
+    }
 }
 
 static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
@@ -158,6 +266,9 @@ t_uint32 LastfmMenu::get_sort_priority()
 bool LastfmMenu::get_display(t_uint32 index, pfc::string_base& text, uint32_t& flags)
 {
     flags = 0;
+    if (!playbackMenuVisible())
+        return false;
+
     const bool authed = lastfmIsAuthenticated();
 
     switch (index)
@@ -181,7 +292,6 @@ bool LastfmMenu::get_display(t_uint32 index, pfc::string_base& text, uint32_t& f
 
 void LastfmMenu::execute(t_uint32 index, ctx_t)
 {
-    auto& authenticator = LastfmCore::instance().authenticator();
     switch (index)
     {
     case CMD_AUTHENTICATE:
@@ -189,75 +299,18 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
         if (lastfmIsAuthenticated())
             return;
 
-        std::string url;
-
-        if (!authenticator.hasPendingToken())
+        if (authRequestInFlight.exchange(true))
         {
-            const bool ok = authenticator.startAuth(url);
-            if (ok && !url.empty())
-            {
-                popup_message::g_show("A browser window will open to authorize this foobar2000 instance with Last.fm.\n"
-                                      "After allowing access, return here and click Authenticate again.",
-                                      "Foo Scrobbler");
-                openBrowserUrl(url);
-            }
-            else
-            {
-                authenticator.logout(); // Clear any half-started state
-                popup_message::g_show("Failed to start authentication. Please try again.", "Foo Scrobbler");
-            }
+            LFM_DEBUG("Authentication request already in progress.");
+            return;
         }
-        else
-        {
-            LastfmAuthState state;
-            if (authenticator.completeAuth(state))
+
+        fb2k::inWorkerThread(
+            []
             {
-                auto& core = LastfmCore::instance();
-
-                // Prevent cross-account submission:
-                const pfc::string8 owner = lastfmGetQueueOwnerUsername();
-                const std::string newUser = state.username;
-
-                if (owner.is_empty())
-                {
-                    // First time: claim ownership.
-                    lastfmSetQueueOwnerUsername(newUser.c_str());
-                }
-                else if (std::string(owner.c_str()) != newUser)
-                {
-                    // Different user: wipe pending scrobbles before draining.
-                    core.scrobbler().clearQueue();
-                    lastfmSetQueueOwnerUsername(newUser.c_str());
-                }
-                // else same user -> keep queue as-is
-
-                lastfmSetAuthState(state);
-                popup_message::g_show("Authentication complete.", "Foo Scrobbler");
-
-                core.scrobbler().onAuthenticationRecovered();
-                core.scrobbler().retryAsync();
-            }
-            else
-            {
-                // User likely closed browser or denied access. Reset and restart auth flow.
-                authenticator.logout();
-
-                std::string url2;
-                if (authenticator.startAuth(url2) && !url2.empty())
-                {
-                    popup_message::g_show(
-                        "Authorization was not completed. Let's try again.\n"
-                        "A browser window will open to authorize this foobar2000 instance with Last.fm.\n"
-                        "After allowing access, return here and click Authenticate again.",
-                        "Foo Scrobbler");
-                    openBrowserUrl(url2);
-                }
-                else
-                {
-                    popup_message::g_show("Authentication failed. Please try again.", "Foo Scrobbler");
-                }
-            }
-        }
+                runAuthenticateFlow();
+                authRequestInFlight.store(false);
+            });
         break;
     }
 

@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.5.4  
+**Release:** 1.5.5  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -76,6 +76,13 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.5.5    2026-07-14
+Fix order of station title content parsing.  
+Fix pause state from vetoing an eligible scrobble at track boundaries.  
+Refresh FOO_SCROBBLER tag state on edits instead of polling every tick.  
+Add option to hide the Playback Last.fm menu.  
+Run Last.fm authentication off the main thread.  
+
 1.5.4    2026-06-30
 Apply Title Formatting scripts to streams like local files.  
 Keep short CJK stream titles from being filtered as station noise.  

@@ -301,6 +301,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
                              << " stream=" << (newIsStream ? "yes" : "no"));
 
     // Natural boundary: submit previous track (if eligible) before switching state.
+    rules.paused = false;
     submitDynamicPendingIfAny();
     submitLocalScrobbleIfNeeded(false);
     LastfmCore::instance().scrobbler().retryAsync();
@@ -356,8 +357,8 @@ void LastfmTracker::on_playback_time(double time)
 {
     playbackTime = time;
 
+    // currentFooScrobblerTagAllows is kept fresh at track start, on tag edits and right before submission.
     const bool suspended = lastfmIsSuspended();
-    refreshFooScrobblerTagAllows();
     const bool blocked = suspended || !currentFooScrobblerTagAllows;
 
     if (!suspended && !currentFooScrobblerTagAllows)
@@ -381,8 +382,6 @@ void LastfmTracker::on_playback_time(double time)
 
     if (!blocked)
         rules.playbackTime = time;
-
-    refreshCurrentFileMetadata(!blocked);
 
     if (channel == PlaybackChannel::DynamicStream)
     {
@@ -420,6 +419,8 @@ void LastfmTracker::on_playback_pause(bool paused)
 
 void LastfmTracker::on_playback_stop(play_control::t_stop_reason)
 {
+    // A pause at the boundary must not veto an already-eligible scrobble.
+    rules.paused = false;
     submitDynamicPendingIfAny();
     submitLocalScrobbleIfNeeded(false);
     auto& scrobbler = LastfmCore::instance().scrobbler();
@@ -768,6 +769,7 @@ void LastfmTracker::on_playback_starting(play_control::t_track_command, bool)
 }
 void LastfmTracker::on_playback_edited(metadb_handle_ptr)
 {
+    refreshFooScrobblerTagAllows();
     refreshCurrentFileMetadata(true);
 }
 void LastfmTracker::on_volume_change(float)
