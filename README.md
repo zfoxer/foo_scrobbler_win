@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.5.5  
+**Release:** 1.5.6  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -76,6 +76,9 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.5.6    2026-07-21  
+Fix handling of eligible pending stream scrobbles at shutdown.  
+
 1.5.5    2026-07-14
 Fix order of station title content parsing.  
 Fix pause state from vetoing an eligible scrobble at track boundaries.  
