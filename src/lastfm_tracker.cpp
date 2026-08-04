@@ -97,6 +97,7 @@ void LastfmTracker::recompileTfIfNeeded()
     compileIfChanged(lastfm::settings::albumArtistTitleFormat(), cachedAlbumArtistTfExpr_, albumArtistTf_);
     compileIfChanged(lastfm::settings::titleTitleFormat(), cachedTitleTfExpr_, titleTf_);
     compileIfChanged(lastfm::settings::albumTitleFormat(), cachedAlbumTfExpr_, albumTf_);
+    compileIfChanged(lastfm::settings::mbidTitleFormat(), cachedMbidTfExpr_, mbidTf_);
 
     if (!fallbackArtistTf_.is_valid())
         compiler->compile_safe(fallbackArtistTf_, "[%Artist%]");
@@ -110,6 +111,7 @@ void LastfmTracker::fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTr
     out.title = evalTitleFormat(track, titleTf_);
     out.album = evalTitleFormat(track, albumTf_);
     out.albumArtist = evalTitleFormat(track, albumArtistTf_);
+    out.mbid = evalTitleFormat(track, mbidTf_);
 
     applyVariousArtistsRule(out.albumArtist);
 
@@ -136,6 +138,7 @@ void LastfmTracker::resetState()
     channel = PlaybackChannel::None;
     currentFooScrobblerTagAllows = true;
     fooScrobblerTagBlockLogged = false;
+    wasSuspended = lastfmIsSuspended();
 
     resetLocalChannelState();
     rules.reset(0.0);
@@ -198,6 +201,16 @@ bool LastfmTracker::refreshFooScrobblerTagAllows()
     return currentFooScrobblerTagAllows;
 }
 
+void LastfmTracker::resendNowPlayingAfterResume()
+{
+    refreshFooScrobblerTagAllows();
+
+    if (!currentFooScrobblerTagAllows || current.artist.empty() || current.title.empty())
+        return;
+
+    LastfmCore::instance().scrobbler().sendNowPlayingOnly(current);
+}
+
 bool LastfmTracker::trackIsExcluded(const LastfmTrackInfo& track, const file_info* externalInfo)
 {
     return lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(track.artist, track.title, track.album) ||
@@ -227,7 +240,8 @@ void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
     fillTrackInfoFromTf(currentHandle, refreshed);
 
     const bool changed = refreshed.artist != current.artist || refreshed.title != current.title ||
-                         refreshed.album != current.album || refreshed.albumArtist != current.albumArtist;
+                         refreshed.album != current.album || refreshed.albumArtist != current.albumArtist ||
+                         refreshed.mbid != current.mbid;
     if (!changed)
         return;
 
@@ -235,6 +249,7 @@ void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
     current.title = refreshed.title;
     current.album = refreshed.album;
     current.albumArtist = refreshed.albumArtist;
+    current.mbid = refreshed.mbid;
 
     const bool hasRequiredMetadata = !current.artist.empty() && !current.title.empty();
     if (local.state == LocalScrobbleState::WaitingForMetadata && hasRequiredMetadata)
@@ -284,11 +299,6 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
             current.title = t;
         }
     }
-
-    const char* mbid = info.meta_get("musicbrainz_trackid", 0);
-    if (!mbid)
-        mbid = info.meta_get("MUSICBRAINZ_TRACKID", 0);
-    current.mbid = mbid ? mbid : "";
 
     current.durationSeconds = info.get_length();
     rules.reset(current.durationSeconds);
@@ -359,6 +369,12 @@ void LastfmTracker::on_playback_time(double time)
 
     // currentFooScrobblerTagAllows is kept fresh at track start, on tag edits and right before submission.
     const bool suspended = lastfmIsSuspended();
+
+    // Resume from suspension: re-send Now Playing for the current track (NP-only path).
+    if (wasSuspended && !suspended)
+        resendNowPlayingAfterResume();
+    wasSuspended = suspended;
+
     const bool blocked = suspended || !currentFooScrobblerTagAllows;
 
     if (!suspended && !currentFooScrobblerTagAllows)
@@ -380,9 +396,6 @@ void LastfmTracker::on_playback_time(double time)
     else if (isPlaying && channel == PlaybackChannel::DynamicStream)
         updateListeningClock(dynamic.clock, time, blocked);
 
-    if (!blocked)
-        rules.playbackTime = time;
-
     if (channel == PlaybackChannel::DynamicStream)
     {
         // Stream-only: cache a dynamic scrobble payload once we have >=30s effective listening.
@@ -398,18 +411,11 @@ void LastfmTracker::on_playback_time(double time)
     submitLocalScrobbleIfNeeded(true);
 }
 
-void LastfmTracker::on_playback_seek(double time)
+void LastfmTracker::on_playback_seek(double)
 {
-    if (!isPlaying || current.durationSeconds <= 0.0)
-        return;
-
-    const double half = current.durationSeconds * LastfmScrobbleConfig::SCROBBLE_THRESHOLD_FACTOR;
-
-    if (time < half)
-    {
-        local.clock.effectiveSeconds = 0.0;
-        local.clock.haveLastReportedTime = false;
-    }
+    // Re-baseline both clocks so seek distance is never counted as listened time.
+    local.clock.haveLastReportedTime = false;
+    dynamic.clock.haveLastReportedTime = false;
 }
 
 void LastfmTracker::on_playback_pause(bool paused)

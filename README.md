@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.5.6  
+**Release:** 1.5.7  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -76,6 +76,10 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+1.5.7    2026-08-04
+Rework the logic behind the seekbar and scrobble eligibility.  
+Pass musicbrainz_trackid through the TF pipeline.  
+
 1.5.6    2026-07-21  
 Fix handling of eligible pending stream scrobbles at shutdown.  
 

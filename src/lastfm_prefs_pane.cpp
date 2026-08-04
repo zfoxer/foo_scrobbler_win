@@ -54,6 +54,7 @@ enum ControlId
     IdAlbumArtistTf,
     IdTitleTf,
     IdAlbumTf,
+    IdMbidTf,
     IdExcludeArtists,
     IdExcludeTitles,
     IdExcludeAlbums,
@@ -83,6 +84,8 @@ const TextFieldSetting kTagFields[] = {
      lastfm::settings::setAlbumArtistTitleFormat, "[%Album Artist%]"},
     {IdTitleTf, L"Title:", lastfm::settings::titleTitleFormat, lastfm::settings::setTitleTitleFormat, "[%Title%]"},
     {IdAlbumTf, L"Album:", lastfm::settings::albumTitleFormat, lastfm::settings::setAlbumTitleFormat, "[%Album%]"},
+    {IdMbidTf, L"MusicBrainz track ID:", lastfm::settings::mbidTitleFormat, lastfm::settings::setMbidTitleFormat,
+     "[%Musicbrainz_Trackid%]"},
 };
 
 const TextFieldSetting kExclusionFields[] = {
