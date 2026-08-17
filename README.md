@@ -18,7 +18,9 @@ A native and original Last.fm scrobbler component (foo_scrobbler_win) for foobar
 **OS support:** Windows 10 (x86, x64) and Windows 11 (x64, arm64ec) for foobar2000 v2.24+
 
 This is the GitHub site of the [Windows version](https://github.com/zfoxer/foo_scrobbler_win).  
-For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_mac).
+For the native macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_mac).  
+For the port of Foo Scrobbler to the **fooyin** player [see here](https://github.com/zfoxer/foo_scrobbler_yin).  
+
 
 ### Quick start
 
@@ -26,6 +28,7 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 2. Install: **foo_scrobbler_win.fb2k-component**.
 3. [Authenticate](https://github.com/zfoxer/foo_scrobbler_win/wiki/Authentication) once with your Lastfm account through the browse flow.  
 4. Play music. Scrobbling happens automatically.
+
 
 ### Where the UI lives
 - Main menu: **Playback → Last.fm**
@@ -38,6 +41,7 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 - Sends **Now Playing** when appropriate (aligned with Last.fm Scrobbling 2.0 expectations).
 - Scrobbles only after playback qualifies (e.g., **50% played** or **240 seconds**, whichever comes first).
 - Uses validation to prevent malformed or duplicate submissions.
+
 
 #### When the network is unreliable
 - If Last.fm can’t be reached, scrobbles are **queued locally**.
@@ -59,6 +63,7 @@ For the macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_
 - **Correct metadata handling**: Preserves valid tag values before submission.  
 - **Console logging**: Fully reports impactful internal scrobbling actions.  
 - **Open source**: Released under the MIT License.  
+
 
 ### Documentation
 
