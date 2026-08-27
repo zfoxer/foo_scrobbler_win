@@ -26,6 +26,7 @@
 namespace
 {
 using ApiParams = std::map<std::string, std::string>;
+using JsonValue = lastfm::util::json::Value;
 
 struct ApiOutcome
 {
@@ -33,6 +34,7 @@ struct ApiOutcome
     int apiError = 0;
     std::string apiMessage;
     bool hasJson = false;
+    int ignoredCount = 0;
 };
 
 struct ScrobbleAuth
@@ -115,9 +117,59 @@ static ApiOutcome classifyResponse(bool httpOk, const std::string& httpError, co
         return out;
     }
 
+    out.ignoredCount = apiInfo.ignoredCount;
+
+    if (apiInfo.hasScrobbleCounts && apiInfo.ignoredCount > 0)
+    {
+        LFM_INFO("Last.fm ignored " << apiInfo.ignoredCount << " of " << (apiInfo.acceptedCount + apiInfo.ignoredCount)
+                                    << " scrobbles, still reported as success.");
+    }
+
     // Success
     out.result = LastfmScrobbleResult::SUCCESS;
     return out;
+}
+
+static bool extractTrackOutcomes(const char* body, std::vector<LastfmTrackOutcome>& out)
+{
+    out.clear();
+
+    JsonValue root;
+    if (!lastfm::util::json::parse(body, root))
+        return false;
+
+    const JsonValue* node = root.at("scrobbles.scrobble");
+    if (!node)
+        return false;
+
+    const bool single = node->isObject();
+    if (!single && node->type != JsonValue::Type::Array)
+        return false;
+
+    const std::size_t count = single ? 1 : node->items.size();
+    for (std::size_t i = 0; i < count; ++i)
+    {
+        const JsonValue& entry = single ? *node : node->items[i];
+        if (!entry.isObject())
+            return false;
+
+        LastfmTrackOutcome outcome;
+        const JsonValue* code = entry.at("ignoredMessage.code");
+
+        int value = 0;
+        if (code && code->asInt(value) && value != 0)
+        {
+            outcome.accepted = false;
+            outcome.ignoredCode = value;
+
+            if (const JsonValue* text = entry.at("ignoredMessage.#text"))
+                text->asString(outcome.ignoredText);
+        }
+
+        out.push_back(std::move(outcome));
+    }
+
+    return true;
 }
 
 #ifdef LFM_DEBUG
@@ -146,6 +198,49 @@ static void selfTest_extractLastfmApiError()
         assert(info.hasError);
         assert(info.errorCode == 9);
         assert(!info.message.empty());
+    }
+
+    {
+        // A nested "error" is not a top-level API error.
+        auto info = lastfm::util::extractLastfmApiError(
+            "{\"scrobbles\":{\"scrobble\":{\"ignoredMessage\":{\"code\":\"1\"},\"error\":7}}}");
+        assert(info.hasJson);
+        assert(!info.hasError);
+        assert(!info.hasScrobbleCounts);
+    }
+
+    {
+        // Refused tracks are reported next to the accepted ones, not as an API error.
+        auto info = lastfm::util::extractLastfmApiError(
+            "{\"scrobbles\":{\"@attr\":{\"accepted\":3,\"ignored\":\"2\"},\"scrobble\":[]}}");
+        assert(info.hasJson);
+        assert(!info.hasError);
+        assert(info.hasScrobbleCounts);
+        assert(info.acceptedCount == 3);
+        assert(info.ignoredCount == 2);
+    }
+
+    {
+        // JSON glued to something else is not JSON, and neither is a truncated body.
+        assert(!lastfm::util::extractLastfmApiError("{\"error\":9} <html>oops</html>").hasJson);
+        assert(!lastfm::util::extractLastfmApiError("{\"error\":9").hasJson);
+    }
+
+    {
+        // \uXXXX is decoded to UTF-8, surrogate pairs included.
+        auto info = lastfm::util::extractLastfmApiError("{\"error\":6,\"message\":\"Bj\\u00f6rk \\ud83c\\udfb5\"}");
+        assert(info.message == "Bj\xc3\xb6rk \xf0\x9f\x8e\xb5");
+
+        // An unpaired surrogate must leave valid UTF-8: these strings reach NSString.
+        auto lone = lastfm::util::extractLastfmApiError("{\"error\":6,\"message\":\"\\ud83cX\"}");
+        assert(lone.message == "\xef\xbf\xbdX");
+    }
+
+    {
+        std::string value;
+        const char* session = "{\"session\":{\"name\":\"user\",\"key\":\"sk\"}}";
+        assert(lastfm::util::json::findString(session, "session.key", value) && value == "sk");
+        assert(!lastfm::util::json::findString(session, "key", value));
     }
 }
 
@@ -291,13 +386,13 @@ static LastfmScrobbleResult loadScrobbleAuth(ScrobbleAuth& out, const char* logP
     return LastfmScrobbleResult::SUCCESS;
 }
 
-static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBody)
+static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBody, abort_callback& abort)
 {
     pfc::string8 body;
     std::string httpError;
 
     const bool httpOk =
-        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError);
+        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError, abort);
 
     if (httpOk)
         LFM_DEBUG("NowPlaying response received. (size=" << body.get_length() << ")");
@@ -314,7 +409,7 @@ static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBod
 }
 } // namespace
 
-LastfmScrobbleResult LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
+LastfmScrobbleResult LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track, abort_callback& abort)
 {
     std::map<std::string, std::string> params;
     std::string apiSecret;
@@ -325,12 +420,16 @@ LastfmScrobbleResult LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track
     }
 
     const std::string formBody = buildSignedFormBody(params, apiSecret);
-    return postNowPlayingAndClassify(formBody);
+    return postNowPlayingAndClassify(formBody, abort);
 }
 
 LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
-                                            std::time_t startTimestamp)
+                                            std::time_t startTimestamp, abort_callback& abort,
+                                            LastfmTrackOutcome* outOutcome)
 {
+    if (outOutcome)
+        *outOutcome = LastfmTrackOutcome();
+
 #ifdef LFM_DEBUG
     static bool tested = (selfTest_extractLastfmApiError(), true);
     (void)tested;
@@ -367,9 +466,16 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
 
     const std::string formBody = buildSignedFormBody(params, auth.apiSecret);
     const bool httpOk =
-        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError);
+        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError, abort);
 
     ApiOutcome outcome = classifyResponse(httpOk, httpError, body);
+
+    if (outcome.result == LastfmScrobbleResult::SUCCESS && outOutcome && outcome.ignoredCount > 0)
+    {
+        std::vector<LastfmTrackOutcome> outcomes;
+        if (extractTrackOutcomes(body.c_str(), outcomes) && outcomes.size() == 1)
+            *outOutcome = outcomes.front();
+    }
 
     if (outcome.result == LastfmScrobbleResult::SUCCESS)
     {
@@ -379,8 +485,12 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
     return outcome.result;
 }
 
-LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests)
+LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests,
+                                                 abort_callback& abort, std::vector<LastfmTrackOutcome>* outPerTrack)
 {
+    if (outPerTrack)
+        outPerTrack->clear();
+
 #ifdef LFM_DEBUG
     static bool tested = (selfTest_extractLastfmApiError(), true);
     (void)tested;
@@ -422,9 +532,16 @@ LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbl
     std::string httpError;
 
     const bool httpOk =
-        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", bodyText, body, httpError);
+        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", bodyText, body, httpError, abort);
 
     ApiOutcome outcome = classifyResponse(httpOk, httpError, body);
+
+    if (outcome.result == LastfmScrobbleResult::SUCCESS && outPerTrack && outcome.ignoredCount > 0 &&
+        (!extractTrackOutcomes(body.c_str(), *outPerTrack) || outPerTrack->size() != requests.size()))
+    {
+        LFM_INFO("Scrobble batch: per-track list does not match the batch, discarding it.");
+        outPerTrack->clear();
+    }
 
     if (outcome.result == LastfmScrobbleResult::SUCCESS)
     {

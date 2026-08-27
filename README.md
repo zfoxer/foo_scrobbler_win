@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 1.5.7  
+**Release:** 2.0.0  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -81,6 +81,14 @@ For the port of Foo Scrobbler to the **fooyin** player [see here](https://github
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+2.0.0    2026-08-27
+Replace JSON key scanners with a strict parser written from scratch.  
+Make worker HTTP cancellable so exit doesn't block on a stalled socket.  
+Detect and handle Last.fm per-track scrobble refusals of dispatched batches.  
+Refresh pending metadata by queue entry id.  
+Catch regex errors at match time.
+Set the maximum daily scrobble submission budget to 900 from 2600.  
+
 1.5.7    2026-08-04
 Rework the logic behind the seekbar and scrobble eligibility.  
 Pass musicbrainz_trackid through the TF pipeline.  

@@ -267,7 +267,7 @@ void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
 
     auto& scrobbler = LastfmCore::instance().scrobbler();
     if (local.state == LocalScrobbleState::Submitted)
-        scrobbler.refreshPendingMetadata(current);
+        scrobbler.refreshPendingMetadata(local.queuedId, current);
 
     scrobbler.sendNowPlayingOnly(current);
 }
@@ -456,7 +456,7 @@ void LastfmTracker::submitLocalScrobbleIfNeeded(bool allowFilterRecovery)
     }
 
     const double duration = current.durationSeconds;
-    if (duration < LastfmScrobbleConfig::MIN_TRACK_DURATION_SECONDS)
+    if (duration <= LastfmScrobbleConfig::MIN_TRACK_DURATION_SECONDS)
         return;
 
     const double threshold = rules.requiredPlaybackSeconds();
@@ -513,7 +513,7 @@ void LastfmTracker::submitLocalScrobbleIfNeeded(bool allowFilterRecovery)
     local.state = LocalScrobbleState::Submitted;
 
     auto& scrobbler = LastfmCore::instance().scrobbler();
-    scrobbler.queueScrobble(current, playbackTime, startWallclock, /*refreshOnSubmit=*/true);
+    local.queuedId = scrobbler.queueScrobble(current, playbackTime, startWallclock, /*refreshOnSubmit=*/true);
 }
 
 void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
@@ -622,7 +622,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     }
     else
     {
-        LFM_DEBUG("Submitting NP (dynamic): " << current.artist.c_str() << " - " << current.title.c_str());
+        LFM_DEBUG("Submitting dynamic NP: " << current.artist.c_str() << " - " << current.title.c_str());
         scrobbler.sendNowPlayingOnly(current);
     }
 }

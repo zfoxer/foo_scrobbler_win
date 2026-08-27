@@ -57,6 +57,7 @@ static constexpr size_t K_BACKOFF_BORROW_QUEUE_LIMIT = 65;
 static constexpr int K_RETRY_STEP_SECONDS = 60;
 static constexpr int K_RETRY_MAX_SECONDS = 60 * 60; // 1h cap
 static constexpr int K_RATE_LIMIT_COOLDOWN_SECONDS = 6 * 60;
+static constexpr int K_IGNORED_CODE_DAILY_LIMIT = 5;
 
 static cfg_string cfgLastfmPendingScrobbles(GUID_CFG_LASTFM_PENDING_SCROBBLES, "");
 
@@ -69,7 +70,7 @@ static cfg_int cfgLastfmDrainEnabled(GUID_CFG_LASTFM_DRAIN_ENABLED,
 );
 
 static cfg_int cfgLastfmDailyBudget(GUID_CFG_LASTFM_DAILY_BUDGET,
-                                    2600 // default to revise if needed
+                                    900 // default to revise if needed
 );
 
 static cfg_int cfgLastfmScrobblesToday(GUID_CFG_LASTFM_SCROBBLES_TODAY, 0);
@@ -385,10 +386,9 @@ LastfmQueue::RetryUpdate LastfmQueue::makeFailureRetryUpdate(const QueuedScrobbl
     return u;
 }
 
-LastfmQueue::DispatchOutcome
-LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
-                                                 const std::function<bool()>& isShuttingDown, LastfmClient& client,
-                                                 const std::function<void()>& onInvalidSession, int64_t dailyBudget)
+LastfmQueue::DispatchOutcome LastfmQueue::dispatchSinglesAndBuildRetryUpdates(
+    const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt, const std::function<bool()>& isShuttingDown,
+    LastfmClient& client, const std::function<void()>& onInvalidSession, int64_t dailyBudget, abort_callback& abort)
 {
     const std::time_t nowCheck = std::time(nullptr);
 
@@ -425,18 +425,38 @@ LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobbl
         t.mbid = q.mbid;
         t.durationSeconds = q.durationSeconds;
 
-        auto res = client.scrobble(t, q.playbackSeconds, q.startTimestamp);
+        LastfmTrackOutcome outcome;
+        auto res = client.scrobble(t, q.playbackSeconds, q.startTimestamp, abort, &outcome);
 
         RetryUpdate u;
         u.id = q.id;
 
         if (res == LastfmScrobbleResult::SUCCESS)
         {
+            if (!outcome.accepted)
+            {
+                const bool dailyLimit = outcome.ignoredCode == K_IGNORED_CODE_DAILY_LIMIT;
+
+                LFM_INFO("Queue: Last.fm refused (code " << outcome.ignoredCode << ") " << q.artist.c_str() << " - "
+                                                         << q.title.c_str() << ": " << outcome.ignoredText.c_str()
+                                                         << (dailyLimit ? " [kept]" : " [dropped]"));
+
+                if (dailyLimit)
+                {
+                    out.rateLimited = true;
+                    out.cooldownSeconds = K_RETRY_MAX_SECONDS;
+                    break;
+                }
+            }
+
             u.remove = true;
             out.updates.push_back(u);
 
             if (isShuttingDown && isShuttingDown())
                 break;
+
+            if (!outcome.accepted)
+                continue;
 
             cfgLastfmScrobblesToday.set(cfgLastfmScrobblesToday.get() + 1);
 
@@ -471,10 +491,9 @@ LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobbl
     return out;
 }
 
-LastfmQueue::DispatchOutcome
-LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
-                                          const std::function<bool()>& isShuttingDown, LastfmClient& client,
-                                          const std::function<void()>& onInvalidSession, int64_t dailyBudget)
+LastfmQueue::DispatchOutcome LastfmQueue::dispatchAndBuildRetryUpdates(
+    const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt, const std::function<bool()>& isShuttingDown,
+    LastfmClient& client, const std::function<void()>& onInvalidSession, int64_t dailyBudget, abort_callback& abort)
 {
     const std::time_t nowCheck = std::time(nullptr);
     std::vector<const QueuedScrobble*> batch;
@@ -548,22 +567,52 @@ LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& sna
         requests.push_back(std::move(request));
     }
 
-    const LastfmScrobbleResult batchResult = client.scrobbleBatch(requests);
+    std::vector<LastfmTrackOutcome> outcomes;
+    const LastfmScrobbleResult batchResult = client.scrobbleBatch(requests, abort, &outcomes);
 
     if (batchResult == LastfmScrobbleResult::SUCCESS)
     {
-        for (const QueuedScrobble* q : batch)
+        const bool perTrack = outcomes.size() == batch.size();
+        int acceptedCount = 0;
+        bool dailyLimitHit = false;
+
+        for (std::size_t i = 0; i < batch.size(); ++i)
         {
+            const QueuedScrobble* q = batch[i];
+
+            if (perTrack && !outcomes[i].accepted)
+            {
+                const bool dailyLimit = outcomes[i].ignoredCode == K_IGNORED_CODE_DAILY_LIMIT;
+
+                LFM_INFO("Queue: Last.fm refused (code "
+                         << outcomes[i].ignoredCode << ") " << q->artist.c_str() << " - " << q->title.c_str() << ": "
+                         << outcomes[i].ignoredText.c_str() << (dailyLimit ? " [kept]" : " [dropped]"));
+
+                if (dailyLimit)
+                {
+                    dailyLimitHit = true;
+                    continue;
+                }
+            }
+            else
+                ++acceptedCount;
+
             RetryUpdate u;
             u.id = q->id;
             u.remove = true;
             out.updates.push_back(u);
         }
 
+        if (dailyLimitHit)
+        {
+            out.rateLimited = true;
+            out.cooldownSeconds = K_RETRY_MAX_SECONDS;
+        }
+
         if (isShuttingDown && isShuttingDown())
             return out;
 
-        cfgLastfmScrobblesToday.set(cfgLastfmScrobblesToday.get() + static_cast<int>(batch.size()));
+        cfgLastfmScrobblesToday.set(cfgLastfmScrobblesToday.get() + acceptedCount);
         return out;
     }
 
@@ -579,7 +628,7 @@ LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& sna
         LFM_INFO(
             "Queue: batch scrobble returned OTHER_ERROR, falling back to singles for count=" << (unsigned)batch.size());
         return dispatchSinglesAndBuildRetryUpdates(snapshot, maxToAttempt, isShuttingDown, client, onInvalidSession,
-                                                   dailyBudget);
+                                                   dailyBudget, abort);
     }
 
     const std::time_t nowSchedule = std::time(nullptr);
@@ -628,14 +677,17 @@ LastfmQueue::LastfmQueue(LastfmClient& client, std::function<void()> onInvalidSe
 {
 }
 
-void LastfmQueue::refreshPendingScrobbleMetadata(const LastfmTrackInfo& track)
+void LastfmQueue::refreshPendingScrobbleMetadata(std::uint64_t id, const LastfmTrackInfo& track)
 {
+    if (id == 0)
+        return;
+
     std::lock_guard<std::mutex> lock(mutex);
     ensureCacheLoadedLocked();
 
     for (auto it = cache_.rbegin(); it != cache_.rend(); ++it)
     {
-        if (!it->refreshOnSubmit)
+        if (it->id != id)
             continue;
 
         LFM_DEBUG("Queue: refresh metadata");
@@ -659,11 +711,11 @@ void LastfmQueue::refreshPendingScrobbleMetadata(const LastfmTrackInfo& track)
     }
 }
 
-void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double playbackSeconds, bool refreshOnSubmit,
-                                        std::time_t startTimestamp)
+std::uint64_t LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double playbackSeconds,
+                                                 bool refreshOnSubmit, std::time_t startTimestamp)
 {
     if (track.artist.empty() || track.title.empty())
-        return;
+        return 0;
 
     QueuedScrobble q;
     q.artist = track.artist;
@@ -684,6 +736,8 @@ void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double pla
     saveCacheLocked();
 
     LFM_DEBUG("Queue: stored scrobble, pending=" << (unsigned)cache_.size());
+
+    return q.id;
 }
 
 void LastfmQueue::enterRateLimitCooldownLocked(std::time_t now, std::time_t cooldownSeconds)
@@ -697,8 +751,7 @@ void LastfmQueue::enterRateLimitCooldownLocked(std::time_t now, std::time_t cool
 
     if (!rateLimitLogged_)
     {
-        LFM_INFO("Queue: Last.fm rate limit hit (error 29), pausing retries for "
-                 << static_cast<long long>(cooldownSeconds) << "s.");
+        LFM_INFO("Queue: pausing retries for " << static_cast<long long>(cooldownSeconds) << "s.");
         rateLimitLogged_ = true;
     }
 }
@@ -718,7 +771,7 @@ bool LastfmQueue::isRateLimitedLocked(std::time_t now)
     return true;
 }
 
-void LastfmQueue::retryQueuedScrobbles()
+void LastfmQueue::retryQueuedScrobbles(abort_callback& abort)
 {
     if (core_api::is_shutting_down())
         return;
@@ -761,8 +814,8 @@ void LastfmQueue::retryQueuedScrobbles()
     if (snapshot.empty())
         return;
 
-    const auto dispatch =
-        dispatchAndBuildRetryUpdates(snapshot, maxToAttempt, isShuttingDown, client, onInvalidSession, dailyBudget);
+    const auto dispatch = dispatchAndBuildRetryUpdates(snapshot, maxToAttempt, isShuttingDown, client, onInvalidSession,
+                                                       dailyBudget, abort);
 
     if (isShuttingDown())
         return;
@@ -770,7 +823,7 @@ void LastfmQueue::retryQueuedScrobbles()
     if (dispatch.rateLimited)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        enterRateLimitCooldownLocked(std::time(nullptr), K_RATE_LIMIT_COOLDOWN_SECONDS);
+        enterRateLimitCooldownLocked(std::time(nullptr), dispatch.cooldownSeconds);
     }
 
     if (dispatch.updates.empty())
