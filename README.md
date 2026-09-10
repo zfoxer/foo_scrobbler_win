@@ -15,7 +15,7 @@
 A native and original Last.fm scrobbler component (foo_scrobbler_win) for foobar2000 on Windows. It submits “Now Playing” and scrobbles using the official Last.fm Scrobbling 2.0 API, applies strict playback qualification rules, and keeps a local queue when you’re offline. Once authenticated, it runs quietly in the background.
 
 
-**OS support:** Windows 10 (x86, x64) and Windows 11 (x64, arm64ec) for foobar2000 v2.24+
+**OS support:** Windows 10 (x86, x64) and Windows 11 (x64, arm64ec) for foobar2000 v2.0+
 
 This is the GitHub site of the [Windows version](https://github.com/zfoxer/foo_scrobbler_win).  
 For the native macOS version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_mac).  
