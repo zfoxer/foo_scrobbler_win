@@ -8,7 +8,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 2.0.0  
+**Release:** 2.0.1  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -37,13 +37,9 @@ For the port of Foo Scrobbler to the **fooyin** player [see here](https://github
 
 ### What it does
 
-#### Submission behavior
 - Sends **Now Playing** when appropriate (aligned with Last.fm Scrobbling 2.0 expectations).
 - Scrobbles only after playback qualifies (e.g., **50% played** or **240 seconds**, whichever comes first).
 - Uses validation to prevent malformed or duplicate submissions.
-
-
-#### When the network is unreliable
 - If Last.fm can’t be reached, scrobbles are **queued locally**.
 - When connectivity returns, the queue is **flushed automatically**.
 
@@ -58,7 +54,7 @@ For the port of Foo Scrobbler to the **fooyin** player [see here](https://github
 - **Low overhead**: Lean implementation with no third-party dependencies.  
 - **Playback validation**: Rejects malformed, invalid, or duplicate scrobbles.  
 - **Dynamic sources**: Fully supports radio streams and dynamic playback metadata.  
-- **Title Formatting**: Uses foobar2000 Title Formatting for input metadata.  
+- **Title Formatting**: Uses foobar2000 Title Formatting for input metadata and filtering.  
 - **Regex filtering**: Filters unwanted scrobbles using regular expressions.  
 - **Correct metadata handling**: Preserves valid tag values before submission.  
 - **Console logging**: Fully reports impactful internal scrobbling actions.  
@@ -81,6 +77,11 @@ For the port of Foo Scrobbler to the **fooyin** player [see here](https://github
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+2.0.1    2026-10-06
+Extend handling of NowPlaying for Stop/Pause on all use cases.
+Fix console logging of per-scrobble Last.fm refusals within batches.
+Fix parsing of local tracks without Artist field, to avoid NP dispatch.
+
 2.0.0    2026-08-27
 Replace JSON key scanners with a strict parser written from scratch.  
 Make worker HTTP cancellable so exit doesn't block on a stalled socket.  
