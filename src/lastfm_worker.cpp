@@ -95,6 +95,7 @@ void LastfmWorker::postNowPlaying(const LastfmTrackInfo& track)
     {
         std::lock_guard<std::mutex> lock(mtx_);
         pendingNowPlaying_ = track;
+        pendingNowPlayingSince_ = Clock::now();
     }
     wake();
 }
@@ -158,15 +159,8 @@ void LastfmWorker::threadMain()
 
             if (pendingNowPlaying_.has_value())
             {
-                if (lastNowPlayingSent_ == Clock::time_point::min())
-                {
-                    nextWake = waitNow;
-                }
-                else
-                {
-                    const auto nextNowPlaying = lastNowPlayingSent_ + cfg_.nowPlayingMinInterval;
-                    nextWake = std::min(nextWake, nextNowPlaying <= waitNow ? waitNow : nextNowPlaying);
-                }
+                const auto nextNowPlaying = pendingNowPlayingSince_ + cfg_.nowPlayingMinInterval;
+                nextWake = std::min(nextWake, nextNowPlaying <= waitNow ? waitNow : nextNowPlaying);
             }
 
             if (!cmds_.empty())
@@ -256,13 +250,11 @@ void LastfmWorker::handleNowPlayingIfReady()
         if (!pendingNowPlaying_.has_value())
             return;
 
-        const auto now = Clock::now();
-        if (lastNowPlayingSent_ != Clock::time_point::min() && now - lastNowPlayingSent_ < cfg_.nowPlayingMinInterval)
+        if (Clock::now() - pendingNowPlayingSince_ < cfg_.nowPlayingMinInterval)
             return;
 
         t = *pendingNowPlaying_;
         pendingNowPlaying_.reset();
-        lastNowPlayingSent_ = now;
     }
 
     if (!t.has_value())
