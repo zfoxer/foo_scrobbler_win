@@ -74,7 +74,7 @@ For the port of Foo Scrobbler to the **fooyin** player [see here](https://github
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
-2.0.3    2026-11-12
+2.0.3    2026-11-25
 Treat 10 & 26 Last.fm error codes of api key rejection as temporary.
 Debounce NP dispatch when rapidly traversing tracks.
 Move the authentication flow launch to the Settings pane.
