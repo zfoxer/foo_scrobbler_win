@@ -5,7 +5,7 @@
 
 ### Foo Scrobbler for Windows    
 
-**Release:** 2.0.1  
+**Release:** 2.0.3  
 **License:** MIT  
 **Copyright:** © 2025–2026 Konstantinos Kyriakopoulos  
 
@@ -74,6 +74,12 @@ For the port of Foo Scrobbler to the **fooyin** player [see here](https://github
 <summary><strong>Show changelog</strong></summary>
 
 <pre>
+2.0.3    2026-11-12
+Treat 10 & 26 Last.fm error codes of api key rejection as temporary.
+Debounce NP dispatch when rapidly traversing tracks.
+Move the authentication flow launch to the Settings pane.
+Update to SDK-2026-10-01.
+
 2.0.1    2026-10-06
 Extend handling of NowPlaying for Stop/Pause on all use cases.
 Fix console logging of per-scrobble Last.fm refusals within batches.

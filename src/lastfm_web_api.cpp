@@ -16,6 +16,7 @@
 #include <foobar2000/SDK/foobar2000.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cstring>
 #include <map>
@@ -27,6 +28,8 @@ namespace
 {
 using ApiParams = std::map<std::string, std::string>;
 using JsonValue = lastfm::util::json::Value;
+
+static std::atomic<bool> apiKeyRejected{false};
 
 struct ApiOutcome
 {
@@ -99,6 +102,10 @@ static ApiOutcome classifyResponse(bool httpOk, const std::string& httpError, co
             out.result = LastfmScrobbleResult::INVALID_SESSION;
             break;
 
+        case 10:
+        case 26:
+            apiKeyRejected = true;
+            [[fallthrough]];
         case 8:
         case 11:
         case 16:
@@ -126,6 +133,7 @@ static ApiOutcome classifyResponse(bool httpOk, const std::string& httpError, co
     }
 
     // Success
+    apiKeyRejected = false;
     out.result = LastfmScrobbleResult::SUCCESS;
     return out;
 }
@@ -409,6 +417,11 @@ static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBod
     return outcome.result;
 }
 } // namespace
+
+bool lastfmApiKeyRejected()
+{
+    return apiKeyRejected;
+}
 
 LastfmScrobbleResult LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track, abort_callback& abort)
 {

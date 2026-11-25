@@ -8,6 +8,7 @@
 #include "stdafx.h"
 
 #include "debug.h"
+#include "lastfm_core.h"
 #include "lastfm_settings.h"
 #include "lastfm_state.h"
 
@@ -272,6 +273,18 @@ std::string templateExpression(const TemplateSetting& t, const std::string& valu
     return makeTemplateExpression(t.field, t.contains, value);
 }
 
+const std::pair<const char*, bool> kAuthFlow[] = {{"User not authenticated.", false},
+                                                  {"Contacting Last.fm...", false},
+                                                  {"Allow access in the browser, then complete authentication.", true},
+                                                  {"Completing authentication...", true},
+                                                  {"Failed to start authentication. Please try again.", false},
+                                                  {"Not authorized yet. Allow access in the browser.", true},
+                                                  {"Request expired. Allow access in the new browser page.", true},
+                                                  {"Could not complete authentication. Please try again.", true},
+                                                  {"Authentication failed. Please try again.", false},
+                                                  {"Authentication cleared. Pending scrobbles are kept.", false}};
+static_assert(std::size(kAuthFlow) == static_cast<std::size_t>(Authenticator::FlowStatus::Cleared) + 1);
+
 class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>, public preferences_page_instance
 {
   public:
@@ -312,9 +325,7 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
         lastfm::settings::setConsoleLevel(comboSelection(consoleCombo_));
         lastfmSetLogLevelFromConsoleChoice(lastfm::settings::consoleLevel());
 
-        // The checkbox is forced on and disabled while logged out; only persist a state the user could edit.
-        if (lastfmGetAuthState().isAuthenticated)
-            lastfm::settings::setShowPlaybackMenu(checked(showPlaybackMenu_));
+        lastfm::settings::setShowPlaybackMenu(checked(showPlaybackMenu_));
 
         lastfm::settings::setDisableNowPlaying(checked(disableNowPlaying_));
         lastfm::settings::setOnlyScrobbleFromMediaLibrary(checked(onlyLibrary_));
@@ -445,7 +456,13 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
         if (code != BN_CLICKED && code != CBN_SELCHANGE && code != EN_CHANGE)
             return 0;
 
-        if (id == IdOnlyLibrary)
+        if (reinterpret_cast<HWND>(lp) == authButton_)
+        {
+            Authenticator& authenticator = LastfmCore::instance().authenticator();
+            lastfmIsAuthenticated() ? authenticator.clearAuthentication() : authenticator.authenticateAsync();
+            refreshAuthStatus();
+        }
+        else if (id == IdOnlyLibrary)
             refreshDynamicEnabledState();
         else if (templateIndex(id) >= 0)
             updateTemplateExpressionFromControl(id);
@@ -584,9 +601,12 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
         showPlaybackMenu_ = addCheckbox(page, IdShowPlaybackMenu, L"Show Last.fm in the Playback menu", 170, 294);
 
         addHeader(page, L"Authentication", 10, 338);
-        addLabel(page, L"Status:", 10, 370);
+        authButton_ =
+            addDarkControl(::CreateWindowExW(0, L"BUTTON", L"Authenticate", WS_CHILD | WS_VISIBLE | WS_TABSTOP, 170,
+                                             368, 240, 26, page, nullptr, core_api::get_my_instance(), nullptr));
+        addLabel(page, L"Status:", 10, 404);
         authStatus_ = addDarkControl(::CreateWindowExW(
-            0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT, 170, 373, 420, 40, page,
+            0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT, 170, 407, 420, 40, page,
             reinterpret_cast<HMENU>(static_cast<INT_PTR>(IdAuthStatus)), core_api::get_my_instance(), nullptr));
     }
 
@@ -630,7 +650,7 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
             }
 
         if (authStatus_)
-            ::MoveWindow(authStatus_, 170, 373, std::max(240, width - 210), 40, TRUE);
+            ::MoveWindow(authStatus_, 170, 407, std::max(240, width - 210), 40, TRUE);
     }
 
     void showSelectedTab()
@@ -670,8 +690,7 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
     bool hasChanged() const
     {
         bool changed = comboSelection(consoleCombo_) != lastfm::settings::consoleLevel() ||
-                       (lastfmGetAuthState().isAuthenticated &&
-                        checked(showPlaybackMenu_) != lastfm::settings::showPlaybackMenu()) ||
+                       checked(showPlaybackMenu_) != lastfm::settings::showPlaybackMenu() ||
                        checked(disableNowPlaying_) != lastfm::settings::disableNowPlaying() ||
                        checked(onlyLibrary_) != lastfm::settings::onlyScrobbleFromMediaLibrary() ||
                        comboSelection(dynamicCombo_) != lastfm::settings::configuredDynamicSourcesMode() ||
@@ -683,21 +702,18 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
 
     void refreshAuthStatus()
     {
+        const Authenticator& authenticator = LastfmCore::instance().authenticator();
+        const auto& [flowText, awaitsCompletion] = kAuthFlow[static_cast<std::size_t>(authenticator.flowStatus())];
         const LastfmAuthState state = lastfmGetAuthState();
-        const std::string text = state.isAuthenticated
-                                     ? "Authenticated as " + state.username + "."
-                                     : "User not authenticated, please authenticate\nfrom the Playback menu.";
+        const std::string text = state.isAuthenticated ? "Authenticated as " + state.username + "." : flowText;
         setWindowUtf8(authStatus_, text);
+        if (state.isAuthenticated && lastfmApiKeyRejected())
+            setWindowUtf8(authStatus_, "Last.fm rejected the API key. Pending scrobbles are kept.");
 
-        ::EnableWindow(showPlaybackMenu_, state.isAuthenticated ? TRUE : FALSE);
-        if (state.isAuthenticated != showPlaybackMenuAuthed_)
-        {
-            showPlaybackMenuAuthed_ = state.isAuthenticated;
-            // The menu is always visible while logged out, so show the box checked; restore the
-            // stored choice once authenticated again.
-            setChecked(showPlaybackMenu_, state.isAuthenticated ? lastfm::settings::showPlaybackMenu() : true);
-            notifyChanged();
-        }
+        ::SetWindowTextW(authButton_, state.isAuthenticated ? L"Clear Authentication"
+                                      : awaitsCompletion    ? L"Complete Authentication"
+                                                            : L"Authenticate");
+        ::EnableWindow(authButton_, !authenticator.flowBusy());
     }
 
     void refreshDynamicEnabledState()
@@ -784,13 +800,13 @@ class LastfmPreferencesPage : public CWindowImpl<LastfmPreferencesPage, CWindow>
     std::array<std::string, std::size(kTemplates)> templateValues_{};
     HWND consoleCombo_ = nullptr;
     HWND authStatus_ = nullptr;
+    HWND authButton_ = nullptr;
     HWND disableNowPlaying_ = nullptr;
     HWND onlyLibrary_ = nullptr;
     HWND dynamicLabel_ = nullptr;
     HWND dynamicCombo_ = nullptr;
     HWND treatVariousArtists_ = nullptr;
     HWND showPlaybackMenu_ = nullptr;
-    bool showPlaybackMenuAuthed_ = true;
     HFONT boldFont_ = nullptr;
     fb2k::CCoreDarkModeHooks dark_;
 };

@@ -38,3 +38,5 @@ class LastfmWebApi
     LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests, abort_callback& abort,
                                        std::vector<LastfmTrackOutcome>* outPerTrack = nullptr);
 };
+
+bool lastfmApiKeyRejected();

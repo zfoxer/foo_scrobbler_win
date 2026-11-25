@@ -49,7 +49,7 @@ bool LastfmClient::startAuth(std::string& outUrl)
     return beginAuth(outUrl);
 }
 
-bool LastfmClient::completeAuth(LastfmAuthState& outState)
+LastfmSessionResult LastfmClient::completeAuth(LastfmAuthState& outState)
 {
     return completeAuthFromCallbackUrl("", outState);
 }
